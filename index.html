@@ -43,8 +43,6 @@
         .tab-active { border-bottom: 3px solid #6C5CE7; color: #6C5CE7; font-weight: 800; }
         .tab-inactive { color: #64748B; font-weight: 600; }
         .tab-inactive:hover { color: #6C5CE7; }
-        
-        /* สไตล์สำหรับปุ่มให้คะแนน */
         .score-btn { transition: all 0.2s; border: 2px solid #E2E8F0; }
         .score-btn.selected { background-color: #6C5CE7; color: white; border-color: #6C5CE7; transform: scale(1.05); }
     </style>
@@ -151,13 +149,11 @@
         // ==========================================
         function TrainerApp({ trainer, db, refreshData }) {
             const [tab, setTab] = useState('audio'); // audio, live
-            const [evalCandidate, setEvalCandidate] = useState(null); // { mode, user, data }
+            const [evalCandidate, setEvalCandidate] = useState(null); 
 
             // กรองเฉพาะ Candidate
             const candidates = db.users.filter(u => u.role === 'Candidate' && db.sessions[u.id]);
 
-            // --- จัดกลุ่ม Audio Submissions ---
-            // หาคนที่อัดเสียงครบ 3 ข้อ และยังไม่ผ่าน Trainer
             const groupedAudios = {};
             db.audioSubs.forEach(sub => {
                 if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = [];
@@ -167,17 +163,14 @@
             const audioQueue = candidates.filter(c => {
                 const subs = groupedAudios[c.employee_id] || [];
                 const session = db.sessions[c.id];
-                return subs.length >= 3 && (!session.trainer_passed); // มีงานส่งมา และยังไม่ผ่าน
+                return subs.length >= 3 && (!session.trainer_passed); 
             });
 
-            // --- จัดกลุ่ม Live Interview ---
-            // หาคนที่สอบ PK ผ่านแล้ว แต่ยังไม่ได้สัมภาษณ์ (หรือสัมภาษณ์ไม่ผ่าน)
             const liveQueue = candidates.filter(c => {
                 const session = db.sessions[c.id];
                 return session.pk_passed && !session.trainer_passed;
             });
 
-            // ✅ คำนวณสถิติแยกตามประเภทการประเมิน (แก้ไข Error ตัวแปรที่ไม่ได้ประกาศแล้ว)
             const stats = {
                 pendingAudio: candidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
                 pendingLive: candidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length,
@@ -218,7 +211,6 @@
                         </div>
                     </div>
 
-                    {/* ✅ เพิ่มกล่องสถิติแยกตามประเภทการสอบ */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                         <div className="card p-5 border-l-4 border-l-warning bg-orange-50/30">
                             <p className="text-[10px] uppercase tracking-widest text-orange-600 font-bold">รอประเมิน (ไฟล์เสียง)</p>
@@ -286,7 +278,6 @@
             const [aiFeedbacks, setAiFeedbacks] = useState([null, null, null]);
             const [isAiLoading, setIsAiLoading] = useState([false, false, false]);
 
-            // หา Rubric ให้ตรงกับคำถาม
             const getRubric = (qText) => rubrics.find(r => r.question === qText) || {};
 
             const askAi = async (index) => {
@@ -310,10 +301,12 @@
                         body: JSON.stringify({ contents: [{ parts: [{ text: sysPrompt }] }], generationConfig: { responseMimeType: "application/json" }})
                     });
                     const data = await res.json();
-                    const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                    let rawText = data.candidates[0].content.parts[0].text;
+                    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const result = JSON.parse(rawText);
                     
                     const newFb = [...aiFeedbacks]; newFb[index] = result; setAiFeedbacks(newFb);
-                } catch(e) { alert("AI ประมวลผลล้มเหลว"); }
+                } catch(e) { alert("AI ประมวลผลล้มเหลว กรุณาลองใหม่"); }
                 
                 const newLoadingDone = [...isAiLoading]; newLoadingDone[index] = false; setIsAiLoading(newLoadingDone);
             };
@@ -352,7 +345,6 @@
                                     </div>
                                 </div>
 
-                                {/* ให้คะแนน */}
                                 <div className="pt-4 border-t border-gray-100">
                                     <div className="flex justify-between items-center mb-3">
                                         <p className="text-sm font-black text-brandNavy">Trainer Score (1-10)</p>
@@ -381,7 +373,7 @@
             );
         }
 
-        // --- 3.2 Live Interview Screen (สุ่มสด) ---
+        // --- 3.2 Live Interview Screen ---
         function LiveInterviewScreen({ candidate, rubrics, onBack, onSubmit }) {
             const [step, setStep] = useState(0); 
             const [drawnQ, setDrawnQ] = useState(null); 
@@ -468,11 +460,48 @@
 
             const cands = db.users.filter(u => u.role === 'Candidate');
 
-            // ✅ จัดกลุ่ม Audio สำหรับดึงสถิติ
+            // จัดกลุ่ม Audio สำหรับดึงสถิติรวม
             const groupedAudios = {};
             db.audioSubs.forEach(sub => {
                 if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = [];
                 groupedAudios[sub.employee_id].push(sub);
+            });
+
+            // ✅ สร้างข้อมูลเปรียบเทียบแต่ละ RH (RH Performance Comparison)
+            const rhList = ['RH1', 'RH2', 'RH3', 'RH4', 'RH5'];
+            const rhStats = rhList.map(rh => {
+                const rhCands = cands.filter(c => c.rh === rh);
+                const total = rhCands.length;
+                
+                let pkPassed = 0, interviewPassed = 0;
+                let pkScoreSum = 0, pkScoreCount = 0;
+                let intScoreSum = 0, intScoreCount = 0;
+
+                rhCands.forEach(c => {
+                    const sess = db.sessions[c.id];
+                    if (sess) {
+                        if (sess.pk_passed) pkPassed++;
+                        if (sess.trainer_passed) interviewPassed++;
+                        
+                        if (sess.pk_score != null) {
+                            pkScoreSum += sess.pk_score;
+                            pkScoreCount++;
+                        }
+                        if (sess.trainer_score != null) {
+                            intScoreSum += sess.trainer_score;
+                            intScoreCount++;
+                        }
+                    }
+                });
+
+                return {
+                    rh,
+                    total,
+                    pkUsagePct: total > 0 ? Math.round((pkPassed / total) * 100) : 0,
+                    intUsagePct: total > 0 ? Math.round((interviewPassed / total) * 100) : 0,
+                    pkAvg: pkScoreCount > 0 ? Math.round(pkScoreSum / pkScoreCount) : 0,
+                    intAvg: intScoreCount > 0 ? Math.round(intScoreSum / intScoreCount) : 0
+                };
             });
 
             // --- User Management Actions ---
@@ -488,7 +517,7 @@
             const resetUser = async (userId, name) => {
                 if(confirm(`⚠️ DANGER: ยืนยันการล้างประวัติการสอบทั้งหมดของ ${name} ใช่หรือไม่? ข้อมูลจะถูกลบถาวร`)) {
                     await supabase.from('exam_sessions').delete().eq('user_id', userId);
-                    await supabase.from('audio_submissions').delete().eq('employee_id', userId); // ลบไฟล์เสียงด้วย
+                    await supabase.from('audio_submissions').delete().eq('employee_id', userId);
                     alert("Reset Successful!"); refreshData();
                 }
             };
@@ -500,11 +529,9 @@
                 }
             };
 
-            // --- Export Excel ---
             const exportExcel = () => {
                 const data = cands.map(u => {
                     const sess = db.sessions[u.id] || {};
-                    // ✅ ระบุรูปแบบการสอบที่ใช้
                     const audios = groupedAudios[u.employee_id] || [];
                     const evalMethod = sess.trainer_passed 
                         ? (audios.length >= 3 ? 'Audio Review' : 'Live Interview') 
@@ -581,33 +608,71 @@
                     )}
 
                     {tab === 'reports' && (
-                        <div className="space-y-6">
+                        <div className="space-y-6 animate-fade-in">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="card p-6 bg-brandNavy text-white"><p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Total Candidates</p><p className="text-5xl font-black mt-2">{cands.length}</p></div>
                                 <div className="card p-6 border-l-4 border-l-warning"><p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">In Progress</p><p className="text-5xl font-black text-warning mt-2">{cands.filter(c => db.sessions[c.id]?.overall_status === 'IN_PROGRESS').length}</p></div>
                                 <div className="card p-6 border-l-4 border-l-success"><p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Certified</p><p className="text-5xl font-black text-success mt-2">{cands.filter(c => db.sessions[c.id]?.overall_status === 'CERTIFIED').length}</p></div>
                             </div>
-                            
-                            {/* ✅ เพิ่มรายงานเชิงลึก */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                                <div className="card p-5 bg-white">
-                                    <p className="text-[10px] uppercase tracking-widest text-orange-500 font-bold">รอประเมิน (ไฟล์เสียง)</p>
-                                    <p className="text-3xl font-black text-brandNavy mt-2">{cands.filter(c => db.sessions[c.id]?.pk_passed && !db.sessions[c.id]?.trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length}</p>
+
+                            {/* ✅ เพิ่มตารางเปรียบเทียบภาค (RH Performance Comparison) */}
+                            <div className="card overflow-hidden border-2 border-gray-100 mt-8">
+                                <div className="bg-brandNavy text-white p-5 flex justify-between items-center">
+                                    <h3 className="font-black text-lg">RH Performance Comparison</h3>
+                                    <p className="text-xs text-primaryLight font-bold hidden sm:block">เปรียบเทียบอัตราสอบผ่านและคะแนนเฉลี่ย</p>
                                 </div>
-                                <div className="card p-5 bg-white">
-                                    <p className="text-[10px] uppercase tracking-widest text-primary font-bold">รอประเมิน (สุ่มสด)</p>
-                                    <p className="text-3xl font-black text-brandNavy mt-2">{cands.filter(c => db.sessions[c.id]?.pk_passed && !db.sessions[c.id]?.trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length}</p>
-                                </div>
-                                <div className="card p-5 bg-white">
-                                    <p className="text-[10px] uppercase tracking-widest text-green-500 font-bold">ผ่านประเมิน (ไฟล์เสียง)</p>
-                                    <p className="text-3xl font-black text-brandNavy mt-2">{cands.filter(c => db.sessions[c.id]?.trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length}</p>
-                                </div>
-                                <div className="card p-5 bg-white">
-                                    <p className="text-[10px] uppercase tracking-widest text-teal-500 font-bold">ผ่านประเมิน (สุ่มสด)</p>
-                                    <p className="text-3xl font-black text-brandNavy mt-2">{cands.filter(c => db.sessions[c.id]?.trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length}</p>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm min-w-[800px]">
+                                        <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest border-b border-gray-200">
+                                            <tr>
+                                                <th className="p-4 font-black">Region</th>
+                                                <th className="p-4 text-center">Total IS</th>
+                                                <th className="p-4 border-l border-gray-200 w-1/4">PK (30 ข้อ) Completion</th>
+                                                <th className="p-4 text-center">Avg PK Score</th>
+                                                <th className="p-4 border-l border-gray-200 w-1/4">Interview Completion</th>
+                                                <th className="p-4 text-center">Avg Int. Score</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {rhStats.map(stat => (
+                                                <tr key={stat.rh} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="p-4 font-black text-brandNavy">{stat.rh}</td>
+                                                    <td className="p-4 text-center font-bold text-gray-500">{stat.total}</td>
+                                                    
+                                                    {/* PK Completion */}
+                                                    <td className="p-4 border-l border-gray-100">
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Passed</span>
+                                                            <span className="text-xs font-black text-primary">{stat.pkUsagePct}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                            <div className="bg-primary h-2 rounded-full transition-all duration-1000" style={{width: `${stat.pkUsagePct}%`}}></div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <span className="bg-blue-50 text-primary font-black px-3 py-1.5 rounded-lg inline-block min-w-[60px]">{stat.pkAvg}%</span>
+                                                    </td>
+                                                    
+                                                    {/* Interview Completion */}
+                                                    <td className="p-4 border-l border-gray-100">
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Certified</span>
+                                                            <span className="text-xs font-black text-success">{stat.intUsagePct}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                            <div className="bg-success h-2 rounded-full transition-all duration-1000" style={{width: `${stat.intUsagePct}%`}}></div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <span className="bg-green-50 text-success font-black px-3 py-1.5 rounded-lg inline-block min-w-[60px]">{stat.intAvg}%</span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-
+                            
                             <div className="flex justify-end mt-6"><button onClick={exportExcel} className="bg-success hover:bg-green-500 text-white font-black px-8 py-3 rounded-xl shadow-md transition-all">📥 Export Excel Report</button></div>
                         </div>
                     )}
@@ -620,6 +685,5 @@
     </script>
 </body>
 </html>
-
 
 
