@@ -177,13 +177,12 @@
                 return session.pk_passed && !session.trainer_passed;
             });
 
-            // ✅ คำนวณสถิติแยกตามประเภทการประเมิน
-            const displayCandidates = selectedRH === 'All' ? candidates : candidates.filter(c => c.rh === selectedRH);
+            // ✅ คำนวณสถิติแยกตามประเภทการประเมิน (แก้ไข Error ตัวแปรที่ไม่ได้ประกาศแล้ว)
             const stats = {
-                pendingAudio: displayCandidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
-                pendingLive: displayCandidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length,
-                evaluatedAudio: displayCandidates.filter(c => db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
-                evaluatedLive: displayCandidates.filter(c => db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length
+                pendingAudio: candidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
+                pendingLive: candidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length,
+                evaluatedAudio: candidates.filter(c => db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
+                evaluatedLive: candidates.filter(c => db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length
             };
 
             const submitEvaluation = async (userId, finalScore, attempts) => {
@@ -621,5 +620,6 @@
     </script>
 </body>
 </html>
+
 
 
