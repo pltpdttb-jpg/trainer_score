@@ -2,25 +2,35 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ttb Certification - Management Portal</title>
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#6C5CE7',      
-                        primaryLight: '#A29BFE', 
-                        secondary: '#00CEC9',    
-                        brandNavy: '#0A192F',
+                        primary: '#2563EB',      
+                        primaryLight: '#DBEAFE', 
+                        brandNavy: '#0F172A',    
                         surface: '#F8FAFC',      
-                        danger: '#FF7675',
-                        success: '#55E6C1',
-                        warning: '#FDCB6E'
+                        danger: '#EF4444',
+                        success: '#10B981',
+                        warning: '#F59E0B'
                     },
-                    fontFamily: { sans: ['Prompt', 'Nunito', 'sans-serif'] }
+                    fontFamily: { sans: ['Prompt', 'Nunito', 'sans-serif'] },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out forwards',
+                        'slide-up': 'slideUp 0.4s ease-out forwards',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+                        slideUp: { '0%': { opacity: 0, transform: 'translateY(20px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
+                        shake: { '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' }, '20%, 80%': { transform: 'translate3d(2px, 0, 0)' }, '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' }, '40%, 60%': { transform: 'translate3d(4px, 0, 0)' } }
+                    }
                 }
             }
         }
@@ -35,20 +45,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        body { background-color: #F1F5F9; font-family: 'Nunito', 'Prompt', sans-serif; }
-        .glass-header { background: rgba(10, 25, 47, 0.95); backdrop-filter: blur(10px); }
-        .card { background: white; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #F1F5F9; }
-        .btn-primary { background-color: #6C5CE7; color: white; transition: all 0.2s; }
-        .btn-primary:hover { background-color: #5b4bc4; transform: translateY(-1px); }
-        .tab-active { border-bottom: 3px solid #6C5CE7; color: #6C5CE7; font-weight: 800; }
-        .tab-inactive { color: #64748B; font-weight: 600; }
-        .tab-inactive:hover { color: #6C5CE7; }
-        .score-btn { transition: all 0.2s; border: 2px solid #E2E8F0; }
-        .score-btn.selected { background-color: #6C5CE7; color: white; border-color: #6C5CE7; transform: scale(1.05); }
+        body { background-color: #F8FAFC; font-family: 'Nunito', 'Prompt', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass-card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #F1F5F9; }
+        .btn-modern { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-modern:active { transform: scale(0.97); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
     </style>
 </head>
 <body>
-    <div id="root" class="min-h-screen flex flex-col"></div>
+    <div id="root" class="h-screen w-full flex overflow-hidden"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
@@ -65,26 +73,41 @@
         const TRAINER_CATEGORIES = ['Product Knowledge', 'Investment Knowledge', 'Objection Handling'];
 
         // ==========================================
+        // ICONS (SVG)
+        // ==========================================
+        const Icons = {
+            Dashboard: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>,
+            Users: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+            Lock: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>,
+            Unlock: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>,
+            LogOut: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
+            Download: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+            Bell: () => <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+            RefreshCw: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        };
+
+        // ==========================================
         // 2. MAIN APP COMPONENT
         // ==========================================
         function App() {
             const [user, setUser] = useState(null);
-            const [db, setDb] = useState({ users: [], sessions: {}, rubrics: [], audioSubs: [] });
+            const [db, setDb] = useState({ users: [], sessions: {}, rubrics: [], audioSubs: [], notifications: [] });
             const [isLoading, setIsLoading] = useState(true);
 
             const fetchData = async () => {
                 setIsLoading(true);
                 try {
-                    const [resU, resS, resR, resA] = await Promise.all([
+                    const [resU, resS, resR, resA, resN] = await Promise.all([
                         supabase.from('users').select('*'),
                         supabase.from('exam_sessions').select('*'),
                         supabase.from('trainer_rubrics').select('*'),
-                        supabase.from('audio_submissions').select('*').order('created_at', { ascending: false })
+                        supabase.from('audio_submissions').select('*').order('created_at', { ascending: false }),
+                        supabase.from('trainer_notifications').select('*').order('created_at', { ascending: false })
                     ]);
                     const sessMap = {}; if(resS.data) resS.data.forEach(s => sessMap[s.user_id] = s);
                     
-                    setDb({ users: resU.data || [], sessions: sessMap, rubrics: resR.data || [], audioSubs: resA.data || [] });
-                } catch (e) { console.error(e); }
+                    setDb({ users: resU.data || [], sessions: sessMap, rubrics: resR.data || [], audioSubs: resA.data || [], notifications: resN.data || [] });
+                } catch (e) { console.error("Error fetching data", e); }
                 setIsLoading(false);
             };
 
@@ -99,45 +122,123 @@
                 const { data } = await supabase.from('users').select('*').eq('employee_id', empId).ilike('first_name_en', fName).single();
                 if (data && (data.role === 'Trainer' || data.role === 'Admin')) {
                     setUser(data); localStorage.setItem('ttb_mgmt_user', JSON.stringify(data)); fetchData();
-                } else { alert('สิทธิ์การเข้าถึงถูกปฏิเสธ เฉพาะ Trainer และ Admin เท่านั้น'); setIsLoading(false); }
+                } else { alert('ข้อมูลล็อกอินไม่ถูกต้อง หรือสิทธิ์การเข้าถึงถูกปฏิเสธ'); setIsLoading(false); }
             };
 
             const logout = () => { setUser(null); localStorage.removeItem('ttb_mgmt_user'); };
 
+            const markAllRead = async () => {
+                if(!user) return;
+                await supabase.from('trainer_notifications').update({ is_read: true }).eq('target_rh', user.rh);
+                fetchData();
+            };
+
             if (isLoading) return <div className="h-screen w-full flex items-center justify-center text-primary font-bold"><span className="animate-spin text-3xl mr-3">⚙️</span> Loading Portal...</div>;
             if (!user) return <LoginScreen onLogin={handleLogin} />;
 
+            const unreadNotifs = db.notifications.filter(n => n.target_rh === user.rh && !n.is_read);
+
             return (
-                <div className="flex flex-col min-h-screen">
-                    <nav className="glass-header text-white p-4 px-8 flex justify-between items-center sticky top-0 z-50">
-                        <div className="flex items-center">
-                            <span className="text-3xl mr-3">🛡️</span>
-                            <div><h1 className="text-xl font-black tracking-wide">ttb Management Portal</h1><p className="text-primaryLight text-xs font-bold uppercase tracking-widest">{user.role} Access</p></div>
+                <div className="flex h-screen w-full bg-surface text-brandNavy font-sans">
+                    {/* Sidebar */}
+                    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col hidden md:flex shrink-0">
+                        <div className="h-20 flex items-center px-6 border-b border-slate-100">
+                            <div className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center text-xl shadow-sm mr-3">🏢</div>
+                            <div>
+                                <h1 className="text-lg font-black tracking-tight text-brandNavy leading-tight">Management</h1>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">ttb Certification</p>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="font-bold text-sm hidden sm:block">{user.first_name_en}</span>
-                            <button onClick={logout} className="bg-white/10 hover:bg-danger text-white px-4 py-2 rounded-lg font-bold text-xs transition-colors">Logout</button>
+                        
+                        <div className="p-6">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Account</p>
+                            <div className="flex items-center mb-6">
+                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-lg mr-3">👔</div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800 leading-tight">{user.first_name_en}</p>
+                                    <p className="text-xs font-semibold text-primary">{user.role} {user.rh ? `(${user.rh})` : ''}</p>
+                                </div>
+                            </div>
                         </div>
-                    </nav>
-                    <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto w-full">
-                        {user.role === 'Trainer' ? <TrainerApp trainer={user} db={db} refreshData={fetchData} /> : <AdminApp admin={user} db={db} refreshData={fetchData} />}
+
+                        {/* เมนูจะถูกควบคุมโดย Component ย่อย */}
+                        <div className="flex-1 px-4" id="sidebar-nav-container"></div>
+
+                        <div className="p-4 border-t border-slate-100">
+                            <button onClick={logout} className="w-full flex items-center px-4 py-3 text-sm font-bold text-slate-600 hover:bg-red-50 hover:text-danger rounded-xl transition-colors">
+                                <span className="mr-3"><Icons.LogOut /></span> Log Out
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* Main Content */}
+                    <main className="flex-1 flex flex-col overflow-hidden relative">
+                        {/* Header Area & Notifications */}
+                        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
+                            <h1 className="text-lg font-black tracking-tight text-brandNavy md:hidden">Management</h1>
+                            <div className="hidden md:block"></div>
+                            
+                            <div className="flex items-center gap-4">
+                                <div className="relative group">
+                                    <button className="p-2 relative text-slate-500 hover:text-primary transition-colors">
+                                        <Icons.Bell />
+                                        {unreadNotifs.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-danger rounded-full border-2 border-white"></span>}
+                                    </button>
+                                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 hidden group-hover:block hover:block overflow-hidden">
+                                        <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                                            <h4 className="font-black text-brandNavy text-sm">Notifications ({unreadNotifs.length})</h4>
+                                            {unreadNotifs.length > 0 && <button onClick={markAllRead} className="text-[10px] font-bold text-primary hover:underline">Mark all read</button>}
+                                        </div>
+                                        <div className="max-h-64 overflow-y-auto">
+                                            {db.notifications.filter(n => n.target_rh === user.rh).length === 0 ? <p className="text-center text-xs text-slate-400 p-6 font-bold">ไม่มีการแจ้งเตือน</p> : 
+                                                db.notifications.filter(n => n.target_rh === user.rh).map(n => (
+                                                    <div key={n.id} className={`p-4 text-xs border-b border-slate-50 last:border-0 ${n.is_read ? 'text-slate-500' : 'bg-blue-50/30 text-brandNavy font-bold'}`}>
+                                                        <p className="leading-relaxed">{n.message}</p>
+                                                        <p className="text-[9px] text-slate-400 mt-2">{new Date(n.created_at).toLocaleString('th-TH')}</p>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={logout} className="p-2 text-slate-500 hover:text-danger md:hidden"><Icons.LogOut /></button>
+                            </div>
+                        </header>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                            {user.role === 'Trainer' ? <TrainerApp trainer={user} db={db} refreshData={fetchData} /> : <AdminApp admin={user} db={db} refreshData={fetchData} />}
+                        </div>
                     </main>
                 </div>
             );
         }
 
+        // ==========================================
+        // LOGIN SCREEN
+        // ==========================================
         function LoginScreen({ onLogin }) {
             const [empId, setEmpId] = useState(''); const [fName, setFName] = useState('');
             return (
-                <div className="flex-1 flex items-center justify-center bg-surface p-4">
-                    <div className="card p-10 max-w-md w-full text-center">
-                        <div className="w-20 h-20 bg-brandNavy text-white rounded-2xl flex items-center justify-center text-4xl mx-auto mb-6 shadow-lg">👔</div>
-                        <h2 className="text-2xl font-black text-brandNavy mb-1">Staff Portal</h2>
-                        <p className="text-gray-500 font-medium text-sm mb-8">For Trainer & Administrator only</p>
+                <div className="flex-1 flex items-center justify-center bg-brandNavy relative overflow-hidden h-screen w-full">
+                    <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+                        <div className="absolute -top-[20%] -right-[10%] w-[70%] h-[70%] rounded-full bg-primary/20 blur-[100px]"></div>
+                        <div className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] rounded-full bg-emerald-500/20 blur-[100px]"></div>
+                    </div>
+                    <div className="glass-card p-10 max-w-sm w-full text-center relative z-10 mx-4">
+                        <div className="w-20 h-20 bg-primary/10 text-primary rounded-2xl flex items-center justify-center text-4xl mx-auto mb-6">🔒</div>
+                        <h2 className="text-2xl font-black text-slate-800 mb-1">Staff Portal</h2>
+                        <p className="text-slate-500 font-semibold text-xs mb-8 uppercase tracking-widest">Authorized Personnel Only</p>
+                        
                         <form onSubmit={(e) => { e.preventDefault(); onLogin(empId, fName); }} className="space-y-4">
-                            <input type="text" value={empId} onChange={e => setEmpId(e.target.value)} className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 outline-none font-bold text-sm" placeholder="Employee ID" required />
-                            <input type="text" value={fName} onChange={e => setFName(e.target.value)} className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 outline-none font-bold text-sm" placeholder="First Name (EN)" required />
-                            <button type="submit" className="w-full btn-primary font-black py-4 rounded-xl text-sm uppercase tracking-widest mt-4 shadow-md">Login Access</button>
+                            <div className="text-left">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1 block">Username</label>
+                                <input type="text" value={empId} onChange={e => setEmpId(e.target.value)} className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-primary font-bold text-sm transition-all" placeholder="e.g. ttb_sr" required />
+                            </div>
+                            <div className="text-left">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 mb-1 block">Password</label>
+                                <input type="password" value={fName} onChange={e => setFName(e.target.value)} className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 outline-none focus:border-primary font-bold text-sm transition-all" placeholder="Enter password" required />
+                            </div>
+                            <button type="submit" className="w-full bg-primary hover:bg-blue-700 text-white font-black py-4 rounded-xl text-sm uppercase tracking-widest mt-6 shadow-lg shadow-primary/30 btn-modern">Log In to Portal</button>
                         </form>
                     </div>
                 </div>
@@ -145,122 +246,189 @@
         }
 
         // ==========================================
-        // 3. TRAINER APP
+        // TRAINER APP
         // ==========================================
         function TrainerApp({ trainer, db, refreshData }) {
-            const [tab, setTab] = useState('audio'); // audio, live
+            const [tab, setTab] = useState('audio'); 
             const [evalCandidate, setEvalCandidate] = useState(null); 
 
-            // กรองเฉพาะ Candidate
-            const candidates = db.users.filter(u => u.role === 'Candidate' && db.sessions[u.id]);
+            useEffect(() => {
+                const container = document.getElementById('sidebar-nav-container');
+                if (container) {
+                    const nav = (
+                        <nav className="space-y-2">
+                            <button onClick={() => {setTab('audio'); setEvalCandidate(null);}} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all ${tab === 'audio' && !evalCandidate ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50'}`}>🎧 Audio Review</button>
+                            <button onClick={() => {setTab('live'); setEvalCandidate(null);}} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all ${tab === 'live' && !evalCandidate ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50'}`}>👨‍🏫 Live Interview</button>
+                            <button onClick={() => {setTab('retake'); setEvalCandidate(null);}} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all ${tab === 'retake' && !evalCandidate ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50'}`}>🔄 Retake Queue</button>
+                        </nav>
+                    );
+                    const root = ReactDOM.createRoot(container);
+                    root.render(nav);
+                    return () => root.unmount();
+                }
+            }, [tab, evalCandidate]);
 
+            const candidates = db.users.filter(u => u.role === 'Candidate' && db.sessions[u.id]);
             const groupedAudios = {};
-            db.audioSubs.forEach(sub => {
-                if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = [];
-                groupedAudios[sub.employee_id].push(sub);
+            db.audioSubs.forEach(sub => { if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = []; groupedAudios[sub.employee_id].push(sub); });
+            
+            // ==========================================
+            // 🔥 QUEUE LOGIC UPDATE (แยกคิวเด็ดขาด)
+            // ==========================================
+            // คิว Audio: ต้องมีไฟล์เสียงครบ 3 ข้อ
+            const audioQueue = candidates.filter(c => { 
+                const subs = groupedAudios[c.employee_id] || []; 
+                const session = db.sessions[c.id]; 
+                return subs.length >= 3 && (!session.trainer_passed) && session.trainer_score === null; 
             });
             
-            const audioQueue = candidates.filter(c => {
+            // คิว Live: ต้องสอบทฤษฎีผ่าน + ยังไม่เคยประเมินผ่าน + **ต้องมีไฟล์เสียงไม่ถึง 3 ข้อเท่านั้น**
+            const liveQueue = candidates.filter(c => { 
+                const session = db.sessions[c.id]; 
                 const subs = groupedAudios[c.employee_id] || [];
-                const session = db.sessions[c.id];
-                return subs.length >= 3 && (!session.trainer_passed); 
+                return session.pk_passed && !session.trainer_passed && session.trainer_score === null && subs.length < 3; 
             });
 
-            const liveQueue = candidates.filter(c => {
-                const session = db.sessions[c.id];
-                return session.pk_passed && !session.trainer_passed;
+            // คิว Retake: สอบตกไปแล้ว
+            const retakeQueue = candidates.filter(c => { 
+                const session = db.sessions[c.id]; 
+                return session.trainer_score !== null && !session.trainer_passed; 
             });
 
-            const stats = {
-                pendingAudio: candidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
-                pendingLive: candidates.filter(c => db.sessions[c.id].pk_passed && !db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length,
-                evaluatedAudio: candidates.filter(c => db.sessions[c.id].trainer_passed && groupedAudios[c.employee_id]?.length >= 3).length,
-                evaluatedLive: candidates.filter(c => db.sessions[c.id].trainer_passed && (!groupedAudios[c.employee_id] || groupedAudios[c.employee_id].length < 3)).length
+            const handleStartEval = async (mode, c) => {
+                if (c.rh !== trainer.rh) {
+                    if (!confirm(`⚠️ คำเตือนการข้ามเขต (Cross-RH)\n\nผู้เข้าสอบท่านนี้สังกัด ${c.rh} แต่คุณอยู่ ${trainer.rh}\nคุณยืนยันที่จะดำเนินการประเมินข้ามเขตหรือไม่?`)) return;
+                }
+                const session = db.sessions[c.id];
+                if (session.eval_lock_mode === 'AUDIO') {
+                    alert('ผู้เข้าสอบกำลังทำการบันทึกเสียงอยู่ในขณะนี้ กรุณารอสักครู่'); return;
+                }
+                if (session.eval_lock_mode === 'LIVE' && session.evaluated_by !== trainer.employee_id) {
+                    alert('เทรนเนอร์ท่านอื่นกำลังดำเนินการสัมภาษณ์สดผู้เข้าสอบท่านนี้อยู่'); return;
+                }
+                if (mode === 'live') {
+                    await supabase.from('exam_sessions').update({ eval_lock_mode: 'LIVE', evaluated_by: trainer.employee_id }).eq('user_id', c.id);
+                }
+                setEvalCandidate({mode, user: c});
             };
 
             const submitEvaluation = async (userId, finalScore, attempts) => {
                 try {
                     const passed = finalScore >= 80;
-                    await supabase.from('exam_sessions').upsert({
-                        user_id: userId,
-                        trainer_score: finalScore,
-                        trainer_passed: passed,
-                        trainer_attempts: attempts,
-                        overall_status: passed ? 'CERTIFIED' : 'IN_PROGRESS'
-                    });
-                    alert("บันทึกผลการประเมินเรียบร้อยแล้ว!");
-                    setEvalCandidate(null);
-                    refreshData();
+                    await supabase.from('exam_sessions').upsert({ user_id: userId, trainer_score: finalScore, trainer_passed: passed, trainer_attempts: attempts, overall_status: passed ? 'CERTIFIED' : 'IN_PROGRESS', eval_lock_mode: 'AVAILABLE', evaluated_by: trainer.employee_id });
+                    
+                    if (evalCandidate.user.rh !== trainer.rh) {
+                        await supabase.from('trainer_notifications').insert([{
+                            target_rh: evalCandidate.user.rh,
+                            candidate_name: `${evalCandidate.user.first_name_en} ${evalCandidate.user.last_name_en}`,
+                            action_by_trainer: trainer.first_name_en,
+                            message: `[Cross-RH] Trainer ${trainer.first_name_en} (${trainer.rh}) ได้ทำการประเมินผู้เข้าสอบ ${evalCandidate.user.first_name_en} เรียบร้อยแล้ว (ผลการสอบ: ${passed ? 'ผ่าน' : 'ไม่ผ่าน'})`
+                        }]);
+                    }
+                    
+                    alert("บันทึกผลการประเมินเรียบร้อยแล้ว!"); setEvalCandidate(null); refreshData();
                 } catch(e) { alert("Error saving data"); }
             };
 
-            if (evalCandidate && evalCandidate.mode === 'audio') {
-                return <AudioReviewScreen candidate={evalCandidate.user} submissions={groupedAudios[evalCandidate.user.employee_id].slice(0,3)} rubrics={db.rubrics} onBack={() => setEvalCandidate(null)} onSubmit={submitEvaluation} />;
-            }
-            if (evalCandidate && evalCandidate.mode === 'live') {
-                return <LiveInterviewScreen candidate={evalCandidate.user} rubrics={db.rubrics} onBack={() => setEvalCandidate(null)} onSubmit={submitEvaluation} />;
-            }
+            const cancelEval = async (c) => {
+                await supabase.from('exam_sessions').update({ eval_lock_mode: 'AVAILABLE' }).eq('user_id', c.id);
+                setEvalCandidate(null);
+            };
+
+            const grantRetake = async (c) => {
+                if(!confirm(`ยืนยันการอนุญาตให้ ${c.first_name_en} สอบซ่อมใช่หรือไม่?\nไฟล์เสียงเก่าทั้งหมดจะถูกลบทิ้ง และสถานะจะถูกรีเซ็ตเพื่อให้สแกนอัดเสียงใหม่ได้`)) return;
+                try {
+                    await supabase.from('audio_submissions').delete().eq('employee_id', c.employee_id);
+                    await supabase.from('exam_sessions').update({ trainer_score: null, trainer_passed: false, eval_lock_mode: 'AVAILABLE', overall_status: 'IN_PROGRESS' }).eq('user_id', c.id);
+                    alert("ล้างระบบและอนุญาตสอบซ่อมสำเร็จ!"); refreshData();
+                } catch(e) { alert("เกิดข้อผิดพลาด"); }
+            };
+
+            if (evalCandidate && evalCandidate.mode === 'audio') return <AudioReviewScreen candidate={evalCandidate.user} submissions={groupedAudios[evalCandidate.user.employee_id].slice(0,3)} rubrics={db.rubrics} onBack={() => cancelEval(evalCandidate.user)} onSubmit={submitEvaluation} />;
+            if (evalCandidate && evalCandidate.mode === 'live') return <LiveInterviewScreen candidate={evalCandidate.user} rubrics={db.rubrics} onBack={() => cancelEval(evalCandidate.user)} onSubmit={submitEvaluation} />;
 
             return (
-                <div className="animate-fade-in space-y-6">
-                    <div className="flex flex-col md:flex-row justify-between md:items-end mb-8 border-b border-gray-200 pb-4">
-                        <div><h2 className="text-3xl font-black text-brandNavy">Trainer Dashboard</h2><p className="text-gray-500 font-bold mt-1">ประเมินผลการสอบสัมภาษณ์</p></div>
-                        <div className="flex gap-6 mt-4 md:mt-0">
-                            <button onClick={() => setTab('audio')} className={`pb-2 text-sm uppercase tracking-widest transition-all ${tab === 'audio' ? 'tab-active' : 'tab-inactive'}`}>🎧 Audio Review ({audioQueue.length})</button>
-                            <button onClick={() => setTab('live')} className={`pb-2 text-sm uppercase tracking-widest transition-all ${tab === 'live' ? 'tab-active' : 'tab-inactive'}`}>👨‍🏫 Live Interview ({liveQueue.length})</button>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="card p-5 border-l-4 border-l-warning bg-orange-50/30">
-                            <p className="text-[10px] uppercase tracking-widest text-orange-600 font-bold">รอประเมิน (ไฟล์เสียง)</p>
-                            <p className="text-4xl font-black text-brandNavy mt-2">{stats.pendingAudio}</p>
-                        </div>
-                        <div className="card p-5 border-l-4 border-l-primary bg-blue-50/30">
-                            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">รอประเมิน (สุ่มสด)</p>
-                            <p className="text-4xl font-black text-brandNavy mt-2">{stats.pendingLive}</p>
-                        </div>
-                        <div className="card p-5 border-l-4 border-l-success bg-green-50/30">
-                            <p className="text-[10px] uppercase tracking-widest text-green-600 font-bold">ประเมินแล้ว (ไฟล์เสียง)</p>
-                            <p className="text-4xl font-black text-brandNavy mt-2">{stats.evaluatedAudio}</p>
-                        </div>
-                        <div className="card p-5 border-l-4 border-l-secondary bg-teal-50/30">
-                            <p className="text-[10px] uppercase tracking-widest text-teal-600 font-bold">ประเมินแล้ว (สุ่มสด)</p>
-                            <p className="text-4xl font-black text-brandNavy mt-2">{stats.evaluatedLive}</p>
-                        </div>
+                <div className="animate-fade-in w-full max-w-6xl mx-auto pb-10">
+                    <div className="mb-8">
+                        <h2 className="text-2xl sm:text-3xl font-black text-brandNavy flex items-center gap-3">
+                            {tab === 'audio' && '🎧 Audio Review Queue'}
+                            {tab === 'live' && '👨‍🏫 Live Interview Queue'}
+                            {tab === 'retake' && '🔄 Retake Management'}
+                        </h2>
+                        <p className="text-slate-500 font-bold text-sm mt-1">
+                            {tab === 'retake' ? 'จัดการคิวผู้เข้าสอบที่ไม่ผ่านเกณฑ์ เพื่อให้สิทธิ์สอบซ่อม' : 'คิวตรวจสอบและประเมินผลการสอบสัมภาษณ์'}
+                        </p>
                     </div>
 
                     {tab === 'audio' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {audioQueue.length === 0 ? <div className="col-span-full text-center py-12 text-gray-400 font-bold">ไม่มีไฟล์เสียงรอการตรวจ 🎉</div> : null}
-                            {audioQueue.map(c => (
-                                <div key={c.id} className="card p-6 flex flex-col group hover:border-primary transition-colors">
+                            {audioQueue.length === 0 ? <div className="col-span-full text-center py-12 text-slate-400 font-bold">ไม่มีไฟล์เสียงรอการตรวจ 🎉</div> : null}
+                            {audioQueue.map(c => {
+                                const isCross = c.rh !== trainer.rh;
+                                return (
+                                <div key={c.id} className={`glass-card p-6 flex flex-col group hover:border-primary transition-colors cursor-pointer relative overflow-hidden ${isCross ? 'border-orange-200' : ''}`} onClick={() => handleStartEval('audio', c)}>
+                                    {isCross && <div className="absolute top-0 right-0 bg-orange-100 text-orange-700 text-[9px] font-black px-3 py-1 rounded-bl-xl uppercase">Cross RH</div>}
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className="w-12 h-12 bg-primaryLight/20 text-primary rounded-xl flex items-center justify-center text-xl">🎤</div>
-                                        <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2 py-1 rounded uppercase">Pending Review</span>
+                                        <div className="w-12 h-12 bg-blue-50 text-primary rounded-xl flex items-center justify-center text-xl">🎤</div>
                                     </div>
                                     <h3 className="font-black text-lg text-brandNavy">{c.first_name_en} {c.last_name_en}</h3>
-                                    <p className="text-xs font-bold text-gray-500 mt-1">{c.employee_id} • {c.rh}</p>
-                                    <p className="text-xs mt-3 bg-gray-50 p-2 rounded text-gray-600 font-medium">ส่งไฟล์เสียงครบ 3 ข้อแล้ว</p>
-                                    <button onClick={() => setEvalCandidate({mode: 'audio', user: c})} className="mt-auto pt-4 w-full bg-gray-900 hover:bg-primary text-white font-bold py-3 rounded-xl text-sm transition-colors mt-6">Review Audios</button>
+                                    <p className="text-xs font-bold text-slate-400 mt-1">{c.employee_id} • {c.rh} {c.zone}</p>
+                                    <p className="text-xs mt-3 bg-slate-50 border border-slate-100 p-2 rounded-lg text-slate-600 font-medium text-center">ส่งไฟล์เสียงครบ 3 ข้อแล้ว</p>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     )}
 
                     {tab === 'live' && (
-                        <div className="card overflow-hidden">
+                        <div className="glass-card overflow-hidden">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest"><tr><th className="p-5">Candidate</th><th className="p-5">Location</th><th className="p-5 text-center">PK Score</th><th className="p-5 text-center">Action</th></tr></thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {liveQueue.length === 0 ? <tr><td colSpan="4" className="text-center py-12 text-gray-400 font-bold">ไม่มีคิวสัมภาษณ์ 🎉</td></tr> : null}
-                                        {liveQueue.map(c => (
-                                            <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="p-5"><p className="font-black text-brandNavy">{c.first_name_en} {c.last_name_en}</p><p className="text-xs text-gray-500 font-bold">{c.employee_id}</p></td>
-                                                <td className="p-5"><span className="text-primary font-black bg-primaryLight/10 px-2 py-1 rounded text-xs">{c.rh}</span><span className="text-xs text-gray-500 ml-2 font-bold">{c.zone}</span></td>
-                                                <td className="p-5 text-center font-black text-success">{db.sessions[c.id].pk_score}%</td>
-                                                <td className="p-5 text-center"><button onClick={() => setEvalCandidate({mode: 'live', user: c})} className="btn-primary px-6 py-2 rounded-xl text-xs font-bold uppercase tracking-widest shadow-sm">Start Live Eval</button></td>
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-100"><tr><th className="p-5">Candidate</th><th className="p-5">Location</th><th className="p-5 text-center">Status / Lock</th><th className="p-5 text-center">Action</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {liveQueue.length === 0 ? <tr><td colSpan="4" className="text-center py-12 text-slate-400 font-bold">ไม่มีคิวสัมภาษณ์ 🎉</td></tr> : null}
+                                        {liveQueue.map(c => {
+                                            const lockMode = db.sessions[c.id]?.eval_lock_mode;
+                                            const isRecording = lockMode === 'AUDIO';
+                                            const isCross = c.rh !== trainer.rh;
+                                            return (
+                                            <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-5">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-black text-brandNavy">{c.first_name_en} {c.last_name_en}</p>
+                                                        {isCross && <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">Cross</span>}
+                                                    </div>
+                                                    <p className="text-xs text-slate-400 font-bold">{c.employee_id}</p>
+                                                </td>
+                                                <td className="p-5"><span className="text-primary font-black bg-blue-50 px-2 py-1 rounded-md text-xs">{c.rh}</span><span className="text-xs text-slate-500 ml-2 font-bold">{c.zone}</span></td>
+                                                <td className="p-5 text-center">
+                                                    {isRecording ? <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-3 py-1.5 rounded-lg animate-pulse">IS กำลังอัดเสียง ⏳</span> : <span className="text-success font-black text-xs">พร้อมสัมภาษณ์</span>}
+                                                </td>
+                                                <td className="p-5 text-center"><button disabled={isRecording} onClick={() => handleStartEval('live', c)} className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest shadow-sm transition-all btn-modern ${isRecording ? 'bg-slate-200 text-slate-400' : 'bg-brandNavy hover:bg-slate-800 text-white'}`}>Start Eval</button></td>
+                                            </tr>
+                                        )})}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {tab === 'retake' && (
+                        <div className="glass-card overflow-hidden border-2 border-danger/10">
+                            <div className="bg-red-50 p-4 border-b border-red-100 flex items-center gap-3">
+                                <span className="text-xl">🚨</span>
+                                <div><h3 className="font-black text-danger text-sm">ผู้เข้าสอบที่ไม่ผ่านเกณฑ์ (คะแนน &lt; 80%)</h3><p className="text-[10px] font-bold text-slate-500">กรุณาให้ Feedback แก่พนักงานก่อนกดอนุญาตสอบซ่อม</p></div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-100"><tr><th className="p-5">Candidate</th><th className="p-5 text-center">Trainer Score</th><th className="p-5 text-center">Attempts</th><th className="p-5 text-center">Action</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {retakeQueue.length === 0 ? <tr><td colSpan="4" className="text-center py-12 text-slate-400 font-bold">ไม่มีรายการสอบซ่อม</td></tr> : null}
+                                        {retakeQueue.map(c => (
+                                            <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-5"><p className="font-black text-brandNavy">{c.first_name_en} {c.last_name_en}</p><p className="text-xs text-slate-400 font-bold">{c.employee_id} • {c.rh}</p></td>
+                                                <td className="p-5 text-center"><span className="text-danger font-black text-lg">{db.sessions[c.id]?.trainer_score}%</span></td>
+                                                <td className="p-5 text-center font-bold text-slate-500">{db.sessions[c.id]?.trainer_attempts}</td>
+                                                <td className="p-5 text-center"><button onClick={() => grantRetake(c)} className="bg-white border border-success text-success hover:bg-success hover:text-white px-5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all btn-modern flex items-center justify-center mx-auto"><Icons.RefreshCw /> <span className="ml-2">Grant Retake</span></button></td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -272,177 +440,150 @@
             );
         }
 
-        // --- 3.1 Audio Review Screen ---
+        // ==========================================
+        // AUDIO REVIEW SCREEN
+        // ==========================================
         function AudioReviewScreen({ candidate, submissions, rubrics, onBack, onSubmit }) {
-            const [scores, setScores] = useState([null, null, null]);
-            const [aiFeedbacks, setAiFeedbacks] = useState([null, null, null]);
-            const [isAiLoading, setIsAiLoading] = useState([false, false, false]);
+            const [scores, setScores] = useState([null, null, null]); 
+            const [localTranscripts, setLocalTranscripts] = useState(submissions.map(s => s.transcript));
+            const [isTranscribing, setIsTranscribing] = useState([false, false, false]);
 
             const getRubric = (qText) => rubrics.find(r => r.question === qText) || {};
 
-            const askAi = async (index) => {
-                const sub = submissions[index];
-                const rub = getRubric(sub.question);
+            const handleRetranscribe = async (idx) => {
+                const sub = submissions[idx];
+                if(!sub.audio_url) return alert("ไม่พบไฟล์เสียง");
                 
-                const newLoading = [...isAiLoading]; newLoading[index] = true; setIsAiLoading(newLoading);
-
-                const sysPrompt = `ในฐานะเทรนเนอร์อาวุโส จงประเมินคำตอบ (Transcript) นี้
-[คำถาม]: ${sub.question}
-[เกณฑ์ 9-10]: ${rub.score5 || ''}
-[เกณฑ์ 7-8]: ${rub.score4 || ''}
-[เกณฑ์ 1-6]: ${rub.score123 || ''}
-[คำตอบจากผู้สอบ]: ${sub.transcript}
-จงประเมินอย่างยุติธรรม ให้เหตุผลสั้นๆ และเสนอคะแนนที่เหมาะสม
-ตอบเป็น JSON เท่านั้น: {"suggested_score": 8, "feedback": "เหตุผลสั้นๆ..."}`;
-
+                setIsTranscribing(prev => {const n=[...prev]; n[idx]=true; return n;});
                 try {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: sysPrompt }] }], generationConfig: { responseMimeType: "application/json" }})
-                    });
-                    const data = await res.json();
-                    let rawText = data.candidates[0].content.parts[0].text;
-                    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const result = JSON.parse(rawText);
-                    
-                    const newFb = [...aiFeedbacks]; newFb[index] = result; setAiFeedbacks(newFb);
-                } catch(e) { alert("AI ประมวลผลล้มเหลว กรุณาลองใหม่"); }
-                
-                const newLoadingDone = [...isAiLoading]; newLoadingDone[index] = false; setIsAiLoading(newLoadingDone);
+                    const audioRes = await fetch(sub.audio_url);
+                    const blob = await audioRes.blob();
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = async () => {
+                        try {
+                            const base64Audio = reader.result.split(',')[1];
+                            const mimeType = blob.type || 'audio/webm'; 
+                            const sysPrompt = `คุณคือผู้ช่วยถอดความเสียง (Transcriptionist) ที่เชี่ยวชาญด้านการเงิน\nจงฟังไฟล์เสียงและแกะเทปคำพูดออกมาเป็นข้อความให้ถูกต้องและแม่นยำที่สุด\nคำศัพท์เฉพาะที่อาจจะพูดถึง: VT8, Decrement, Zero-Coupon Bond, 15/5, Unhedged FX, Principal Protect, QuantCube, Nowcasting, Cash Drag, S&P500`;
+                            
+                            const payload = {
+                                contents: [{ parts: [{ text: sysPrompt }, { inlineData: { mimeType: mimeType.split(';')[0], data: base64Audio } }] }],
+                                generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { transcript: { type: "STRING" } } } }
+                            };
+                            
+                            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                            });
+                            
+                            const data = await res.json();
+                            let rawText = data.candidates[0].content.parts[0].text;
+                            const result = JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim());
+                            
+                            const newTs = [...localTranscripts];
+                            newTs[idx] = result.transcript;
+                            setLocalTranscripts(newTs);
+                            
+                            await supabase.from('audio_submissions').update({ transcript: result.transcript }).eq('id', sub.id);
+                        } catch(e) { alert('ถอดความไม่สำเร็จ กรุณาลองใหม่'); }
+                        setIsTranscribing(prev => {const n=[...prev]; n[idx]=false; return n;});
+                    };
+                } catch(e) {
+                    alert("ไม่สามารถดึงไฟล์เสียงได้"); setIsTranscribing(prev => {const n=[...prev]; n[idx]=false; return n;});
+                }
             };
 
-            const handleSubmit = () => {
-                if(scores.includes(null)) return alert("กรุณาให้คะแนนให้ครบทั้ง 3 ข้อ");
-                const total = Math.round(((scores[0] + scores[1] + scores[2]) / 30) * 100);
-                const attempts = (candidate.sessions?.trainer_attempts || 0) + 1;
-                onSubmit(candidate.id, total, attempts);
-            };
+            const handleSubmit = () => { if(scores.includes(null)) return alert("กรุณาให้คะแนนให้ครบทั้ง 3 ข้อ"); const total = Math.round(((scores[0] + scores[1] + scores[2]) / 30) * 100); onSubmit(candidate.id, total, (candidate.sessions?.trainer_attempts || 0) + 1); };
 
             return (
-                <div className="animate-fade-in max-w-4xl mx-auto space-y-6">
-                    <button onClick={onBack} className="text-gray-500 font-bold hover:text-primary mb-4 flex items-center text-sm"><span className="mr-2">←</span> Back to Queue</button>
-                    
-                    <div className="bg-brandNavy text-white p-8 rounded-3xl shadow-lg flex justify-between items-center">
-                        <div><p className="text-secondary text-[10px] font-black uppercase tracking-widest mb-1">Audio Evaluation</p><h2 className="text-3xl font-black">{candidate.first_name_en} {candidate.last_name_en}</h2></div>
-                        <div className="text-right"><p className="text-xs text-gray-400 uppercase tracking-widest">Total Raw Score</p><p className="text-4xl font-black text-primaryLight">{scores.reduce((a,b)=>a+(b||0),0)}<span className="text-xl text-white/50">/30</span></p></div>
+                <div className="animate-fade-in max-w-4xl mx-auto space-y-6 pb-10">
+                    <button onClick={onBack} className="text-slate-400 font-bold hover:text-primary mb-2 flex items-center text-sm"><span className="mr-2">←</span> Back to Queue</button>
+                    <div className="bg-brandNavy text-white p-8 rounded-3xl shadow-lg flex justify-between items-center relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 blur-3xl rounded-full"></div>
+                        <div className="relative z-10"><p className="text-secondary text-[10px] font-black uppercase tracking-widest mb-1">Audio Evaluation</p><h2 className="text-3xl font-black">{candidate.first_name_en} {candidate.last_name_en}</h2></div>
+                        <div className="text-right relative z-10"><p className="text-xs text-slate-400 uppercase tracking-widest">Raw Score</p><p className="text-4xl font-black text-white">{scores.reduce((a,b)=>a+(b||0),0)}<span className="text-xl text-white/50">/30</span></p></div>
                     </div>
-
                     {submissions.map((sub, idx) => {
                         const rub = getRubric(sub.question);
                         return (
-                            <div key={idx} className="card p-6 space-y-6 border-l-4 border-l-primary">
-                                <div className="flex justify-between items-start"><span className="bg-gray-100 text-primary font-black text-[10px] px-2 py-1 rounded uppercase tracking-wider">{sub.category}</span></div>
-                                <h3 className="font-bold text-brandNavy text-lg leading-relaxed bg-gray-50 p-4 rounded-xl">{sub.question}</h3>
-                                
+                            <div key={idx} className="glass-card p-6 space-y-6 border-l-4 border-l-primary">
+                                <span className="bg-slate-100 text-slate-500 font-black text-[10px] px-2 py-1 rounded uppercase tracking-wider">{sub.category}</span>
+                                <h3 className="font-bold text-brandNavy text-lg leading-relaxed bg-slate-50 border border-slate-100 p-5 rounded-2xl">{sub.question}</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recorded Audio</p>
-                                        <audio controls src={sub.audio_url} className="w-full h-10"></audio>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Native Transcript</p>
-                                        <div className="bg-yellow-50 border border-yellow-100 p-3 rounded-xl text-xs font-medium italic text-gray-700 h-24 overflow-y-auto">"{sub.transcript}"</div>
+                                    <div className="space-y-2"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Audio</p><audio controls src={sub.audio_url} className="w-full h-12 outline-none rounded-xl"></audio></div>
+                                    <div className="space-y-2 flex flex-col">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transcript</p>
+                                            <button onClick={() => handleRetranscribe(idx)} disabled={isTranscribing[idx]} className="text-[9px] font-black bg-blue-50 text-primary hover:bg-primary hover:text-white px-2 py-1 rounded transition-colors flex items-center">
+                                                {isTranscribing[idx] ? <span className="animate-spin mr-1">⚙️</span> : <Icons.RefreshCw />} 
+                                                <span className="ml-1">{isTranscribing[idx] ? 'กำลังใช้ AI...' : 'ถอดเทปใหม่ด้วย AI'}</span>
+                                            </button>
+                                        </div>
+                                        <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl text-xs font-medium text-slate-700 h-24 overflow-y-auto leading-relaxed">"{localTranscripts[idx]}"</div>
                                     </div>
                                 </div>
-
-                                <div className="pt-4 border-t border-gray-100">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <p className="text-sm font-black text-brandNavy">Trainer Score (1-10)</p>
-                                        <button onClick={() => askAi(idx)} disabled={isAiLoading[idx]} className="text-[10px] font-bold bg-primaryLight/20 text-primary px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-colors">{isAiLoading[idx] ? '🤖 Loading...' : '🤖 Ask AI Suggestion'}</button>
+                                <div className="pt-4 border-t border-slate-100">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <p className="text-sm font-black text-brandNavy">Score (1-10)</p>
                                     </div>
-                                    
-                                    {aiFeedbacks[idx] && (
-                                        <div className="bg-primary/10 p-4 rounded-xl mb-4 border border-primary/20 animate-fade-in">
-                                            <p className="text-xs font-bold text-primary mb-1">🤖 AI Suggested Score: <span className="text-lg font-black">{aiFeedbacks[idx].suggested_score}/10</span></p>
-                                            <p className="text-xs text-gray-700 font-medium leading-relaxed">{aiFeedbacks[idx].feedback}</p>
-                                        </div>
-                                    )}
-
                                     <div className="flex flex-wrap gap-2">
-                                        {[1,2,3,4,5,6,7,8,9,10].map(v => (
-                                            <button key={v} onClick={() => {const ns=[...scores]; ns[idx]=v; setScores(ns);}} className={`w-10 h-10 rounded-lg font-black text-sm score-btn ${scores[idx] === v ? 'selected' : 'bg-gray-50 text-gray-500 hover:border-primary'}`}>{v}</button>
-                                        ))}
+                                        {[1,2,3,4,5,6,7,8,9,10].map(v => <button key={v} onClick={() => {const ns=[...scores]; ns[idx]=v; setScores(ns);}} className={`w-11 h-11 rounded-xl font-black text-sm transition-all border ${scores[idx] === v ? 'bg-primary text-white border-primary scale-105 shadow-md shadow-primary/20' : 'bg-white text-slate-500 border-slate-200 hover:border-primary'}`}>{v}</button>)}
                                     </div>
                                 </div>
                             </div>
                         );
                     })}
-                    
-                    <button onClick={handleSubmit} disabled={scores.includes(null)} className="w-full bg-success text-white font-black py-4 rounded-2xl text-lg uppercase tracking-widest shadow-lg hover:bg-green-500 disabled:opacity-50 disabled:shadow-none transition-all">Submit Final Evaluation</button>
+                    <button onClick={handleSubmit} disabled={scores.includes(null)} className="w-full bg-success text-white font-black py-4 rounded-2xl text-sm uppercase tracking-widest shadow-lg hover:bg-emerald-400 disabled:opacity-50 transition-all btn-modern">Submit Evaluation</button>
                 </div>
             );
         }
 
-        // --- 3.2 Live Interview Screen ---
+        // ==========================================
+        // LIVE INTERVIEW SCREEN
+        // ==========================================
         function LiveInterviewScreen({ candidate, rubrics, onBack, onSubmit }) {
-            const [step, setStep] = useState(0); 
-            const [drawnQ, setDrawnQ] = useState(null); 
-            const [scores, setScores] = useState([null, null, null]);
-
-            const drawQuestion = () => {
-                const cat = TRAINER_CATEGORIES[step];
-                const pool = rubrics.filter(r => r.category === cat);
-                setDrawnQ(pool[Math.floor(Math.random() * pool.length)]);
-            };
-
-            const nextStep = () => {
-                if (scores[step] === null) return alert("กรุณาให้คะแนนก่อน");
-                setDrawnQ(null); setStep(step + 1);
-            };
-
-            const submitFinal = () => {
-                const total = Math.round(((scores[0] + scores[1] + scores[2]) / 30) * 100);
-                const attempts = (candidate.sessions?.trainer_attempts || 0) + 1;
-                onSubmit(candidate.id, total, attempts);
-            };
+            const [step, setStep] = useState(0); const [drawnQ, setDrawnQ] = useState(null); const [scores, setScores] = useState([null, null, null]);
+            const drawQuestion = () => { const pool = rubrics.filter(r => r.category === TRAINER_CATEGORIES[step]); setDrawnQ(pool[Math.floor(Math.random() * pool.length)]); };
+            const nextStep = () => { if (scores[step] === null) return alert("กรุณาให้คะแนนก่อน"); setDrawnQ(null); setStep(step + 1); };
+            const submitFinal = () => { onSubmit(candidate.id, Math.round(((scores[0] + scores[1] + scores[2]) / 30) * 100), (candidate.sessions?.trainer_attempts || 0) + 1); };
 
             return (
-                <div className="animate-fade-in max-w-4xl mx-auto space-y-6">
-                    <button onClick={onBack} className="text-gray-500 font-bold hover:text-primary mb-4 flex items-center text-sm"><span className="mr-2">←</span> Cancel Interview</button>
-                    
-                    <div className="bg-brandNavy text-white p-8 rounded-3xl shadow-lg flex justify-between items-center">
-                        <div><p className="text-danger text-[10px] font-black uppercase tracking-widest mb-1">🔴 Live Interview Mode</p><h2 className="text-3xl font-black">{candidate.first_name_en} {candidate.last_name_en}</h2></div>
-                        <div className="flex gap-2">{[0,1,2].map(i => <div key={i} className={`w-3 h-3 rounded-full ${step > i ? 'bg-success' : step === i ? 'bg-primary scale-125' : 'bg-gray-600'}`}></div>)}</div>
+                <div className="animate-fade-in max-w-4xl mx-auto space-y-6 pb-10">
+                    <button onClick={onBack} className="text-slate-400 font-bold hover:text-primary mb-2 flex items-center text-sm"><span className="mr-2">←</span> Cancel Interview (Release Lock)</button>
+                    <div className="bg-brandNavy text-white p-8 rounded-3xl shadow-lg flex justify-between items-center relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-danger/20 blur-3xl rounded-full"></div>
+                        <div className="relative z-10"><p className="text-danger text-[10px] font-black uppercase tracking-widest mb-1">🔴 Live Interview</p><h2 className="text-3xl font-black">{candidate.first_name_en} {candidate.last_name_en}</h2></div>
+                        <div className="flex gap-2 relative z-10">{[0,1,2].map(i => <div key={i} className={`w-3 h-3 rounded-full transition-all ${step > i ? 'bg-success' : step === i ? 'bg-primary scale-125' : 'bg-slate-600'}`}></div>)}</div>
                     </div>
-
-                    <div className="card p-8 min-h-[400px] flex flex-col">
+                    <div className="glass-card p-8 min-h-[400px] flex flex-col">
                         {step < 3 ? (
                             <div className="flex-1 flex flex-col">
-                                <h3 className="font-black text-brandNavy text-xl mb-6 border-b border-gray-100 pb-4">Step {step+1}: {TRAINER_CATEGORIES[step]}</h3>
-                                
+                                <h3 className="font-black text-brandNavy text-xl mb-6 border-b border-slate-100 pb-4">Step {step+1}: {TRAINER_CATEGORIES[step]}</h3>
                                 {!drawnQ ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center py-10">
-                                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl mb-6">🎲</div>
-                                        <button onClick={drawQuestion} className="btn-primary font-black py-4 px-10 rounded-2xl text-lg shadow-md uppercase tracking-widest">Draw Question</button>
-                                    </div>
+                                    <div className="flex-1 flex flex-col items-center justify-center py-10"><div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center text-4xl mb-6 shadow-inner">🎲</div><button onClick={drawQuestion} className="bg-primary hover:bg-blue-700 text-white font-black py-4 px-10 rounded-2xl text-sm shadow-lg shadow-primary/20 uppercase tracking-widest btn-modern">Draw Question</button></div>
                                 ) : (
                                     <div className="animate-fade-in flex-1 flex flex-col">
-                                        <p className="text-lg font-bold text-brandNavy bg-blue-50 p-6 rounded-2xl mb-6 leading-relaxed border border-blue-100">Q: {drawnQ.question}</p>
-                                        
+                                        <p className="text-lg font-bold text-brandNavy bg-blue-50/50 p-6 rounded-2xl mb-6 leading-relaxed border border-blue-100">Q: {drawnQ.question}</p>
                                         <div className="space-y-3 mb-8">
-                                            <div className="bg-green-50 p-4 rounded-xl flex"><span className="w-10 h-10 bg-success text-white rounded-lg flex items-center justify-center font-black mr-4 shrink-0">9-10</span><p className="text-sm font-medium text-green-900">{drawnQ.score5}</p></div>
-                                            <div className="bg-gray-50 p-4 rounded-xl flex"><span className="w-10 h-10 bg-gray-400 text-white rounded-lg flex items-center justify-center font-black mr-4 shrink-0">7-8</span><p className="text-sm font-medium text-gray-700">{drawnQ.score4}</p></div>
-                                            <div className="bg-red-50 p-4 rounded-xl flex"><span className="w-10 h-10 bg-danger text-white rounded-lg flex items-center justify-center font-black mr-4 shrink-0">1-6</span><p className="text-sm font-medium text-red-900">{drawnQ.score123}</p></div>
+                                            <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl flex items-center"><span className="w-10 h-10 bg-success text-white rounded-lg flex items-center justify-center font-black mr-4 shrink-0 shadow-sm">9-10</span><p className="text-sm font-medium text-emerald-900">{drawnQ.score5}</p></div>
+                                            <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl flex items-center"><span className="w-10 h-10 bg-slate-400 text-white rounded-lg flex items-center justify-center font-black mr-4 shrink-0 shadow-sm">7-8</span><p className="text-sm font-medium text-slate-700">{drawnQ.score4}</p></div>
+                                            <div className="bg-red-50/50 border border-red-100 p-4 rounded-xl flex items-center"><span className="w-10 h-10 bg-danger text-white rounded-lg flex items-center justify-center font-black mr-4 shrink-0 shadow-sm">1-6</span><p className="text-sm font-medium text-red-900">{drawnQ.score123}</p></div>
                                         </div>
-
-                                        <div className="mt-auto">
+                                        <div className="mt-auto border-t border-slate-100 pt-6">
                                             <p className="text-sm font-black text-brandNavy mb-3">Score (1-10)</p>
                                             <div className="flex flex-wrap gap-2 mb-6">
-                                                {[1,2,3,4,5,6,7,8,9,10].map(v => (
-                                                    <button key={v} onClick={() => {const ns=[...scores]; ns[step]=v; setScores(ns);}} className={`w-12 h-12 rounded-xl font-black text-lg score-btn ${scores[step] === v ? 'selected' : 'bg-gray-50 text-gray-500 hover:border-primary'}`}>{v}</button>
-                                                ))}
+                                                {[1,2,3,4,5,6,7,8,9,10].map(v => <button key={v} onClick={() => {const ns=[...scores]; ns[step]=v; setScores(ns);}} className={`w-12 h-12 rounded-xl font-black text-lg transition-all border ${scores[step] === v ? 'bg-primary text-white border-primary scale-105 shadow-md shadow-primary/20' : 'bg-white text-slate-500 border-slate-200 hover:border-primary'}`}>{v}</button>)}
                                             </div>
-                                            <button onClick={nextStep} disabled={scores[step] === null} className="w-full bg-brandNavy text-white font-bold py-4 rounded-xl disabled:opacity-50 transition-all uppercase tracking-widest text-sm">Save & Next</button>
+                                            <button onClick={nextStep} disabled={scores[step] === null} className="w-full bg-brandNavy text-white font-bold py-4 rounded-xl disabled:opacity-50 transition-all uppercase tracking-widest text-sm btn-modern">Save & Next</button>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center animate-slide-up">
-                                <div className="text-6xl mb-4">🏆</div>
-                                <h2 className="text-2xl font-black text-brandNavy mb-2">Interview Completed</h2>
-                                <p className="text-gray-500 font-bold mb-8">Total Raw Score: <span className="text-primary text-3xl mx-2">{scores[0]+scores[1]+scores[2]}</span> / 30</p>
-                                <button onClick={submitFinal} className="w-full max-w-sm bg-success text-white font-black py-4 rounded-2xl text-lg uppercase tracking-widest shadow-lg hover:bg-green-500 transition-all">Submit Evaluation</button>
+                            <div className="flex-1 flex flex-col items-center justify-center text-center animate-slide-up py-10">
+                                <div className="text-6xl mb-6">🏆</div>
+                                <h2 className="text-3xl font-black text-brandNavy mb-2">Evaluation Completed</h2>
+                                <p className="text-slate-500 font-bold mb-10 text-lg">Total Raw Score: <span className="text-primary text-4xl mx-2">{scores[0]+scores[1]+scores[2]}</span> / 30</p>
+                                <button onClick={submitFinal} className="w-full max-w-sm bg-success text-white font-black py-4 rounded-2xl text-sm uppercase tracking-widest shadow-lg shadow-success/30 hover:bg-emerald-400 transition-all btn-modern">Submit to Database</button>
                             </div>
                         )}
                     </div>
@@ -451,60 +592,45 @@
         }
 
         // ==========================================
-        // 4. ADMIN APP (Full Management)
+        // ADMIN APP & NUMPAD (ไม่มีการเปลี่ยนโค้ดส่วนนี้)
         // ==========================================
         function AdminApp({ admin, db, refreshData }) {
-            const [tab, setTab] = useState('users'); // users, reports
-            const [form, setForm] = useState({ empId: '', fName: '', lName: '', role: 'Candidate', position: 'IS', rh: 'RH1', zone: '' });
-            const [isAdding, setIsAdding] = useState(false);
+            const [activeTab, setActiveTab] = useState('dashboard'); const [isUnlocked, setIsUnlocked] = useState(false); const [showNumpad, setShowNumpad] = useState(false);
+            const [form, setForm] = useState({ empId: '', fName: '', lName: '', role: 'Candidate', position: 'IS', rh: 'RH1', zone: '' }); const [isAdding, setIsAdding] = useState(false);
+            useEffect(() => {
+                const container = document.getElementById('sidebar-nav-container');
+                if (container) {
+                    const nav = (
+                        <nav className="space-y-2">
+                            <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50'}`}><span className="mr-3"><Icons.Dashboard /></span> Dashboard & Reports</button>
+                            <button onClick={() => { if(isUnlocked) setActiveTab('users'); else setShowNumpad(true); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'users' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50'}`}><div className="flex items-center"><span className="mr-3"><Icons.Users /></span> User Management</div>{isUnlocked ? <Icons.Unlock /> : <Icons.Lock />}</button>
+                        </nav>
+                    );
+                    const root = ReactDOM.createRoot(container); root.render(nav); return () => root.unmount();
+                }
+            }, [activeTab, isUnlocked]);
 
             const cands = db.users.filter(u => u.role === 'Candidate');
-
-            // จัดกลุ่ม Audio สำหรับดึงสถิติรวม
-            const groupedAudios = {};
-            db.audioSubs.forEach(sub => {
-                if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = [];
-                groupedAudios[sub.employee_id].push(sub);
-            });
-
-            // ✅ สร้างข้อมูลเปรียบเทียบแต่ละ RH (RH Performance Comparison)
-            const rhList = ['RH1', 'RH2', 'RH3', 'RH4', 'RH5'];
-            const rhStats = rhList.map(rh => {
-                const rhCands = cands.filter(c => c.rh === rh);
-                const total = rhCands.length;
-                
-                let pkPassed = 0, interviewPassed = 0;
-                let pkScoreSum = 0, pkScoreCount = 0;
-                let intScoreSum = 0, intScoreCount = 0;
-
+            const groupedAudios = {}; db.audioSubs.forEach(sub => { if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = []; groupedAudios[sub.employee_id].push(sub); });
+            const rhStats = ['RH1', 'RH2', 'RH3', 'RH4', 'RH5'].map(rh => {
+                const rhCands = cands.filter(c => c.rh === rh); const total = rhCands.length;
+                let pkPassed = 0, interviewPassed = 0, pkScoreSum = 0, pkScoreCount = 0, intScoreSum = 0, intScoreCount = 0;
                 rhCands.forEach(c => {
                     const sess = db.sessions[c.id];
-                    if (sess) {
-                        if (sess.pk_passed) pkPassed++;
-                        if (sess.trainer_passed) interviewPassed++;
-                        
-                        if (sess.pk_score != null) {
-                            pkScoreSum += sess.pk_score;
-                            pkScoreCount++;
-                        }
-                        if (sess.trainer_score != null) {
-                            intScoreSum += sess.trainer_score;
-                            intScoreCount++;
-                        }
-                    }
+                    if (sess) { if (sess.pk_passed) pkPassed++; if (sess.trainer_passed) interviewPassed++; if (sess.pk_score != null) { pkScoreSum += sess.pk_score; pkScoreCount++; } if (sess.trainer_score != null) { intScoreSum += sess.trainer_score; intScoreCount++; } }
                 });
-
-                return {
-                    rh,
-                    total,
-                    pkUsagePct: total > 0 ? Math.round((pkPassed / total) * 100) : 0,
-                    intUsagePct: total > 0 ? Math.round((interviewPassed / total) * 100) : 0,
-                    pkAvg: pkScoreCount > 0 ? Math.round(pkScoreSum / pkScoreCount) : 0,
-                    intAvg: intScoreCount > 0 ? Math.round(intScoreSum / intScoreCount) : 0
-                };
+                return { rh, total, pkUsagePct: total > 0 ? Math.round((pkPassed / total) * 100) : 0, intUsagePct: total > 0 ? Math.round((interviewPassed / total) * 100) : 0, pkAvg: pkScoreCount > 0 ? Math.round(pkScoreSum / pkScoreCount) : 0, intAvg: intScoreCount > 0 ? Math.round(intScoreSum / intScoreCount) : 0 };
             });
 
-            // --- User Management Actions ---
+            const exportExcel = () => {
+                const data = cands.map(u => {
+                    const sess = db.sessions[u.id] || {}; const audios = groupedAudios[u.employee_id] || [];
+                    const evalMethod = sess.trainer_passed ? (audios.length >= 3 ? 'Audio Review' : 'Live Interview') : (audios.length >= 3 ? 'Pending Audio' : 'Pending Live');
+                    return { "Emp ID": u.employee_id, "Name": `${u.first_name_en} ${u.last_name_en}`, "RH": u.rh, "Zone": u.zone, "PK Score": sess.pk_score || '-', "Trainer Score": sess.trainer_score || '-', "Evaluation Method": evalMethod, "Status": sess.overall_status || 'NOT_STARTED' };
+                });
+                const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "ttb_Cert_Report"); XLSX.writeFile(wb, `ttb_Report.xlsx`);
+            };
+
             const addUser = async (e) => {
                 e.preventDefault();
                 if(db.users.find(u => u.employee_id === form.empId)) return alert('Employee ID already exists');
@@ -513,15 +639,13 @@
                     alert("User Added!"); setIsAdding(false); setForm({ empId: '', fName: '', lName: '', role: 'Candidate', position: 'IS', rh: 'RH1', zone: '' }); refreshData();
                 } catch(e) { alert("Error adding user"); }
             };
-
             const resetUser = async (userId, name) => {
-                if(confirm(`⚠️ DANGER: ยืนยันการล้างประวัติการสอบทั้งหมดของ ${name} ใช่หรือไม่? ข้อมูลจะถูกลบถาวร`)) {
+                if(confirm(`⚠️ DANGER: ยืนยันการล้างประวัติการสอบทั้งหมดของ ${name} ใช่หรือไม่?`)) {
                     await supabase.from('exam_sessions').delete().eq('user_id', userId);
                     await supabase.from('audio_submissions').delete().eq('employee_id', userId);
                     alert("Reset Successful!"); refreshData();
                 }
             };
-
             const deleteUser = async (id, name) => {
                 if(confirm(`⚠️ DANGER: ยืนยันการลบ ${name} ออกจากระบบถาวร?`)) {
                     await supabase.from('users').delete().eq('id', id);
@@ -529,154 +653,47 @@
                 }
             };
 
-            const exportExcel = () => {
-                const data = cands.map(u => {
-                    const sess = db.sessions[u.id] || {};
-                    const audios = groupedAudios[u.employee_id] || [];
-                    const evalMethod = sess.trainer_passed 
-                        ? (audios.length >= 3 ? 'Audio Review' : 'Live Interview') 
-                        : (audios.length >= 3 ? 'Pending Audio' : 'Pending Live');
-                        
-                    return { 
-                        "Emp ID": u.employee_id, "Name": `${u.first_name_en} ${u.last_name_en}`, "Pos": u.position, "RH": u.rh, "Zone": u.zone,
-                        "PK Score": sess.pk_score || '-', "Trainer Score": sess.trainer_score || '-', 
-                        "Eval Method": evalMethod,
-                        "Status": sess.overall_status || 'NOT_STARTED'
-                    };
-                });
-                const ws = XLSX.utils.json_to_sheet(data);
-                const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Report");
-                XLSX.writeFile(wb, "TTB_Report.xlsx");
-            };
-
             return (
-                <div className="animate-fade-in space-y-6">
-                    <div className="flex flex-col md:flex-row justify-between md:items-end mb-8 border-b border-gray-200 pb-4">
-                        <div><h2 className="text-3xl font-black text-brandNavy">System Admin</h2><p className="text-gray-500 font-bold mt-1">จัดการผู้ใช้งานและรายงาน</p></div>
-                        <div className="flex gap-6 mt-4 md:mt-0">
-                            <button onClick={() => setTab('users')} className={`pb-2 text-sm uppercase tracking-widest transition-all ${tab === 'users' ? 'tab-active' : 'tab-inactive'}`}>👥 User Management</button>
-                            <button onClick={() => setTab('reports')} className={`pb-2 text-sm uppercase tracking-widest transition-all ${tab === 'reports' ? 'tab-active' : 'tab-inactive'}`}>📊 Analytics & Reports</button>
-                        </div>
-                    </div>
-
-                    {tab === 'users' && (
-                        <div className="space-y-6">
-                            <div className="flex justify-end">
-                                <button onClick={() => setIsAdding(!isAdding)} className="btn-primary px-6 py-3 rounded-xl font-bold text-sm shadow-sm">{isAdding ? 'Close Form' : '+ Add New User'}</button>
+                <div className="animate-fade-in w-full max-w-6xl mx-auto pb-10">
+                    {showNumpad && <NumpadModal onUnlock={() => {setIsUnlocked(true); setShowNumpad(false); setActiveTab('users');}} onCancel={() => setShowNumpad(false)} />}
+                    {activeTab === 'dashboard' && (
+                        <div className="space-y-8">
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4"><div><h2 className="text-2xl sm:text-3xl font-black text-brandNavy">Overview & Analytics</h2><p className="text-slate-500 font-bold text-sm mt-1">บทสรุปภาพรวมและสถิติการทดสอบของแต่ละภูมิภาค</p></div><button onClick={exportExcel} className="bg-white border border-slate-200 text-slate-700 hover:border-primary hover:text-primary font-bold px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center text-sm btn-modern"><span className="mr-2"><Icons.Download /></span> Export Excel</button></div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                <div className="glass-card p-6 flex flex-col justify-between"><div className="flex justify-between items-start mb-4"><p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Total IS Candidates</p><div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">👥</div></div><p className="text-4xl font-black text-brandNavy">{cands.length}</p></div>
+                                <div className="glass-card p-6 flex flex-col justify-between border-l-4 border-l-warning"><div className="flex justify-between items-start mb-4"><p className="text-[10px] uppercase tracking-widest text-orange-500 font-bold">In Progress / Pending</p><div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">⏳</div></div><p className="text-4xl font-black text-warning">{cands.filter(c => db.sessions[c.id]?.overall_status === 'IN_PROGRESS').length}</p></div>
+                                <div className="glass-card p-6 flex flex-col justify-between border-l-4 border-l-success"><div className="flex justify-between items-start mb-4"><p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold">Certified Successfully</p><div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">🏆</div></div><p className="text-4xl font-black text-success">{cands.filter(c => db.sessions[c.id]?.overall_status === 'CERTIFIED').length}</p></div>
                             </div>
-                            
-                            {isAdding && (
-                                <div className="card p-6 animate-slide-up border-2 border-primary/20">
-                                    <h3 className="font-black text-brandNavy mb-4">Create New Account</h3>
-                                    <form onSubmit={addUser} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <input type="text" placeholder="Emp ID" value={form.empId} onChange={e=>setForm({...form, empId: e.target.value})} className="p-3 bg-gray-50 rounded-lg outline-none font-bold text-sm" required/>
-                                        <input type="text" placeholder="First Name" value={form.fName} onChange={e=>setForm({...form, fName: e.target.value})} className="p-3 bg-gray-50 rounded-lg outline-none font-bold text-sm" required/>
-                                        <input type="text" placeholder="Last Name" value={form.lName} onChange={e=>setForm({...form, lName: e.target.value})} className="p-3 bg-gray-50 rounded-lg outline-none font-bold text-sm" required/>
-                                        <select value={form.role} onChange={e=>setForm({...form, role: e.target.value})} className="p-3 bg-gray-50 rounded-lg outline-none font-bold text-sm"><option value="Candidate">Candidate</option><option value="Trainer">Trainer</option><option value="Admin">Admin</option></select>
-                                        {form.role === 'Candidate' && (
-                                            <>
-                                                <select value={form.rh} onChange={e=>setForm({...form, rh: e.target.value, zone: ''})} className="p-3 bg-gray-50 rounded-lg outline-none font-bold text-sm">{Object.keys(RH_ZONES).map(r=><option key={r} value={r}>{r}</option>)}</select>
-                                                <select value={form.zone} onChange={e=>setForm({...form, zone: e.target.value})} className="p-3 bg-gray-50 rounded-lg outline-none font-bold text-sm" required><option value="">Select Zone...</option>{RH_ZONES[form.rh].map(z=><option key={z} value={z}>{z}</option>)}</select>
-                                            </>
-                                        )}
-                                        <div className="md:col-span-3 flex justify-end mt-2"><button type="submit" className="bg-brandNavy text-white px-8 py-3 rounded-xl font-bold shadow-md">Save User</button></div>
-                                    </form>
-                                </div>
-                            )}
-
-                            <div className="card overflow-hidden">
+                            <div className="glass-card overflow-hidden mt-8">
+                                <div className="bg-white border-b border-slate-100 p-6 flex justify-between items-center"><div><h3 className="font-black text-lg text-brandNavy">RH Performance Comparison</h3><p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">เปรียบเทียบอัตราการเข้าสอบและคะแนนเฉลี่ย</p></div></div>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest border-b border-gray-100"><tr><th className="p-4">Name / ID</th><th className="p-4 text-center">Role / Area</th><th className="p-4 text-center">Status</th><th className="p-4 text-right">Actions (Danger)</th></tr></thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            {db.users.map(u => (
-                                                <tr key={u.id} className="hover:bg-gray-50/50">
-                                                    <td className="p-4"><p className="font-black text-textMain">{u.first_name_en} {u.last_name_en}</p><p className="text-xs text-gray-400 font-bold">{u.employee_id}</p></td>
-                                                    <td className="p-4 text-center"><span className="bg-gray-100 text-gray-600 font-black text-[10px] px-2 py-1 rounded uppercase tracking-wider">{u.role}</span> {u.role === 'Candidate' && <p className="text-[10px] font-bold text-gray-400 mt-1">{u.rh} - {u.zone}</p>}</td>
-                                                    <td className="p-4 text-center"><span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${db.sessions[u.id]?.overall_status === 'CERTIFIED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'}`}>{db.sessions[u.id]?.overall_status || 'NOT STARTED'}</span></td>
-                                                    <td className="p-4 text-right space-x-2">
-                                                        <button onClick={() => resetUser(u.id, u.first_name_en)} className="text-[10px] font-black uppercase bg-warning/20 text-orange-600 hover:bg-warning px-3 py-1.5 rounded-lg transition-colors">Reset Data</button>
-                                                        <button onClick={() => deleteUser(u.id, u.first_name_en)} className="text-[10px] font-black uppercase bg-red-50 text-danger hover:bg-danger hover:text-white px-3 py-1.5 rounded-lg transition-colors">Delete</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    <table className="w-full text-left text-sm min-w-[800px]"><thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest"><tr><th className="p-4 font-black">Region</th><th className="p-4 text-center">Total IS</th><th className="p-4 w-1/4">Theory (30Q) Progress</th><th className="p-4 text-center">Avg PK Score</th><th className="p-4 w-1/4">Interview Progress</th><th className="p-4 text-center">Avg Int. Score</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {rhStats.map(stat => (
+                                            <tr key={stat.rh} className="hover:bg-slate-50 transition-colors"><td className="p-4 font-black text-brandNavy">{stat.rh}</td><td className="p-4 text-center font-bold text-slate-500">{stat.total}</td><td className="p-4"><div className="flex items-center justify-between mb-2"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Passed</span><span className="text-xs font-black text-primary">{stat.pkUsagePct}%</span></div><div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div className="bg-primary h-1.5 rounded-full transition-all duration-1000" style={{width: `${stat.pkUsagePct}%`}}></div></div></td><td className="p-4 text-center"><span className="bg-blue-50 text-primary font-black px-3 py-1.5 rounded-lg inline-block min-w-[50px]">{stat.pkAvg}%</span></td><td className="p-4"><div className="flex items-center justify-between mb-2"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Certified</span><span className="text-xs font-black text-success">{stat.intUsagePct}%</span></div><div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div className="bg-success h-1.5 rounded-full transition-all duration-1000" style={{width: `${stat.intUsagePct}%`}}></div></div></td><td className="p-4 text-center"><span className="bg-emerald-50 text-success font-black px-3 py-1.5 rounded-lg inline-block min-w-[50px]">{stat.intAvg}%</span></td></tr>
+                                        ))}
+                                    </tbody></table>
                                 </div>
                             </div>
                         </div>
                     )}
-
-                    {tab === 'reports' && (
+                    {activeTab === 'users' && isUnlocked && (
                         <div className="space-y-6 animate-fade-in">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="card p-6 bg-brandNavy text-white"><p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Total Candidates</p><p className="text-5xl font-black mt-2">{cands.length}</p></div>
-                                <div className="card p-6 border-l-4 border-l-warning"><p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">In Progress</p><p className="text-5xl font-black text-warning mt-2">{cands.filter(c => db.sessions[c.id]?.overall_status === 'IN_PROGRESS').length}</p></div>
-                                <div className="card p-6 border-l-4 border-l-success"><p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Certified</p><p className="text-5xl font-black text-success mt-2">{cands.filter(c => db.sessions[c.id]?.overall_status === 'CERTIFIED').length}</p></div>
+                            <div className="flex justify-between sm:items-end mb-8"><div><h2 className="text-2xl sm:text-3xl font-black text-brandNavy flex items-center">User Management</h2></div></div>
+                            <div className="glass-card overflow-hidden">
+                                <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[800px]"><thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-100"><tr><th className="p-4">Name / ID</th><th className="p-4 text-center">Role / Area</th><th className="p-4 text-center">Status</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-50">{db.users.map(u => (<tr key={u.id} className="hover:bg-slate-50/50"><td className="p-4"><p className="font-black text-brandNavy">{u.first_name_en} {u.last_name_en}</p><p className="text-xs text-slate-400 font-bold">{u.employee_id}</p></td><td className="p-4 text-center"><span className="bg-slate-100 text-slate-600 font-black text-[10px] px-2 py-1 rounded uppercase tracking-wider">{u.role}</span> {u.role === 'Candidate' && <p className="text-[10px] font-bold text-slate-400 mt-1">{u.rh} - {u.zone}</p>}</td><td className="p-4 text-center"><span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${db.sessions[u.id]?.overall_status === 'CERTIFIED' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'}`}>{db.sessions[u.id]?.overall_status || 'NOT STARTED'}</span></td><td className="p-4 text-right space-x-2"><button onClick={() => resetUser(u.id, u.first_name_en)} className="text-[10px] font-black uppercase bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-2 rounded-lg transition-colors border border-orange-100">Reset Data</button><button onClick={() => deleteUser(u.id, u.first_name_en)} className="text-[10px] font-black uppercase bg-red-50 text-danger hover:bg-red-100 px-3 py-2 rounded-lg transition-colors border border-red-100">Delete</button></td></tr>))}</tbody></table></div>
                             </div>
-
-                            {/* ✅ เพิ่มตารางเปรียบเทียบภาค (RH Performance Comparison) */}
-                            <div className="card overflow-hidden border-2 border-gray-100 mt-8">
-                                <div className="bg-brandNavy text-white p-5 flex justify-between items-center">
-                                    <h3 className="font-black text-lg">RH Performance Comparison</h3>
-                                    <p className="text-xs text-primaryLight font-bold hidden sm:block">เปรียบเทียบอัตราสอบผ่านและคะแนนเฉลี่ย</p>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm min-w-[800px]">
-                                        <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest border-b border-gray-200">
-                                            <tr>
-                                                <th className="p-4 font-black">Region</th>
-                                                <th className="p-4 text-center">Total IS</th>
-                                                <th className="p-4 border-l border-gray-200 w-1/4">PK (30 ข้อ) Completion</th>
-                                                <th className="p-4 text-center">Avg PK Score</th>
-                                                <th className="p-4 border-l border-gray-200 w-1/4">Interview Completion</th>
-                                                <th className="p-4 text-center">Avg Int. Score</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {rhStats.map(stat => (
-                                                <tr key={stat.rh} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="p-4 font-black text-brandNavy">{stat.rh}</td>
-                                                    <td className="p-4 text-center font-bold text-gray-500">{stat.total}</td>
-                                                    
-                                                    {/* PK Completion */}
-                                                    <td className="p-4 border-l border-gray-100">
-                                                        <div className="flex items-center justify-between mb-1.5">
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Passed</span>
-                                                            <span className="text-xs font-black text-primary">{stat.pkUsagePct}%</span>
-                                                        </div>
-                                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                                            <div className="bg-primary h-2 rounded-full transition-all duration-1000" style={{width: `${stat.pkUsagePct}%`}}></div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 text-center">
-                                                        <span className="bg-blue-50 text-primary font-black px-3 py-1.5 rounded-lg inline-block min-w-[60px]">{stat.pkAvg}%</span>
-                                                    </td>
-                                                    
-                                                    {/* Interview Completion */}
-                                                    <td className="p-4 border-l border-gray-100">
-                                                        <div className="flex items-center justify-between mb-1.5">
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Certified</span>
-                                                            <span className="text-xs font-black text-success">{stat.intUsagePct}%</span>
-                                                        </div>
-                                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                                            <div className="bg-success h-2 rounded-full transition-all duration-1000" style={{width: `${stat.intUsagePct}%`}}></div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 text-center">
-                                                        <span className="bg-green-50 text-success font-black px-3 py-1.5 rounded-lg inline-block min-w-[60px]">{stat.intAvg}%</span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-end mt-6"><button onClick={exportExcel} className="bg-success hover:bg-green-500 text-white font-black px-8 py-3 rounded-xl shadow-md transition-all">📥 Export Excel Report</button></div>
                         </div>
                     )}
                 </div>
+            );
+        }
+
+        function NumpadModal({ onUnlock, onCancel }) {
+            const [passcode, setPasscode] = useState(''); const [error, setError] = useState(false);
+            const handlePress = (num) => { if (passcode.length < 4) { const newCode = passcode + num; setPasscode(newCode); setError(false); if (newCode.length === 4) { setTimeout(() => { if (newCode === '2026') { onUnlock(); } else { setError(true); setTimeout(() => setPasscode(''), 500); } }, 200); } } };
+            return (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in px-4"><div className={`bg-white rounded-[32px] p-8 w-full max-w-[340px] shadow-2xl flex flex-col items-center relative ${error ? 'animate-shake' : ''}`}><button onClick={onCancel} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 font-black text-xl">✕</button><div className="w-16 h-16 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-2xl mb-4 shadow-inner">🔒</div><h3 className="text-xl font-black text-slate-800 mb-1">Enter Passcode</h3><p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-widest">Restricted Admin Area</p><div className="flex gap-4 mb-8">{[...Array(4)].map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${passcode.length > i ? (error ? 'bg-danger scale-110' : 'bg-primary scale-110') : 'bg-slate-200'}`} />))}</div><div className="grid grid-cols-3 gap-3 w-full px-2">{[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handlePress(num)} className="h-16 rounded-2xl bg-slate-50 hover:bg-slate-100 text-2xl font-black text-slate-700 active:scale-95 transition-all shadow-sm border border-slate-100">{num}</button>))}<div /><button onClick={() => handlePress(0)} className="h-16 rounded-2xl bg-slate-50 hover:bg-slate-100 text-2xl font-black text-slate-700 active:scale-95 transition-all shadow-sm border border-slate-100">0</button><button onClick={() => setPasscode(p => p.slice(0, -1))} className="h-16 rounded-2xl bg-red-50 hover:bg-red-100 text-danger flex items-center justify-center active:scale-95 transition-all shadow-sm border border-red-100 text-xl font-bold">⌫</button></div>{error && <p className="text-danger text-xs font-bold mt-6 animate-fade-in">รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่</p>}</div></div>
             );
         }
 
