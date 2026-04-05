@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ttb Certification - Management Portal</title>
+    <title>ttb Certification - Trainer Portal</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,27 +12,32 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#2563EB',      
+                        primary: '#2563EB',      /* Royal Blue */
                         primaryLight: '#DBEAFE',
-                        primaryDark: '#1D4ED8',
-                        brandNavy: '#0F172A',    
-                        surface: '#F8FAFC',      
-                        danger: '#EF4444',
-                        success: '#10B981',
-                        warning: '#F59E0B',
+                        brandNavy: '#0F172A',    /* Deep Navy */
+                        surface: '#F8FAFC',      /* Slate 50 */
+                        card: '#FFFFFF',
+                        danger: '#EF4444',       /* Red */
+                        warning: '#F59E0B',      /* Yellow */
+                        orange: '#F97316',       /* Orange */
+                        success: '#10B981',      /* Green */
                         textMain: '#1E293B',
                         textMuted: '#64748B',
                     },
                     fontFamily: { sans: ['Prompt', 'Nunito', 'sans-serif'] },
                     animation: {
                         'fade-in': 'fadeIn 0.3s ease-out forwards',
-                        'slide-up': 'slideUp 0.4s ease-out forwards',
+                        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                         'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
                     },
                     keyframes: {
                         fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
                         slideUp: { '0%': { opacity: 0, transform: 'translateY(20px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
                         popIn: { '0%': { opacity: 0, transform: 'scale(0.95)' }, '100%': { opacity: 1, transform: 'scale(1)' } }
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'card': '0 10px 30px -5px rgba(37, 99, 235, 0.05)',
                     }
                 }
             }
@@ -40,30 +45,29 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- React & ReactDOM -->
+    <!-- React & Libraries -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- SheetJS for Excel Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        body { background-color: #F8FAFC; font-family: 'Nunito', 'Prompt', sans-serif; } 
-        .glass-card { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #F1F5F9; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; } 
+        body { background-color: #F8FAFC; font-family: 'Nunito', 'Prompt', sans-serif; -webkit-tap-highlight-color: transparent; color: #1E293B; } 
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; } 
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
-        .btn-modern { transition: transform 0.1s ease; }
-        .btn-modern:active:not(:disabled) { transform: scale(0.97); }
+        .btn-press { transition: transform 0.1s ease, box-shadow 0.2s ease; }
+        .btn-press:active:not(:disabled) { transform: scale(0.97); }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .sidebar-active { background: #DBEAFE; color: #2563EB; font-weight: 700; }
+        .sidebar-inactive { color: #64748B; font-weight: 600; hover: background: #F1F5F9; }
     </style>
 </head>
 <body>
     <div id="root" class="min-h-screen w-full flex flex-col overflow-hidden"></div>
+    
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
 
         // ==========================================
         // SUPABASE CONFIG
@@ -75,47 +79,55 @@
         const RH_ZONES = { 'RH1': ['จตุจักร', 'ธนบุรี', 'บางกะปิ', 'สาทร', 'สุขุมวิท'], 'RH2': ['ชลบุรี', 'บางนา', 'พัทยา', 'ระยอง'], 'RH3': ['เชียงใหม่', 'นครสวรรค์', 'นนทบุรี', 'พิษณุโลก', 'อยุธยา'], 'RH4': ['ดอนเมือง', 'นครราชสีมา', 'สระบุรี', 'อุดรธานี', 'อุบลราชธานี'], 'RH5': ['ภูเก็ต', 'ราชบุรี', 'สมุทรสาคร', 'สุราษฎร์ธานี', 'หาดใหญ่'] };
 
         const Icons = {
-            Download: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
-            X: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-            Copy: () => <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
-            Dashboard: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>,
-            List: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
-            Activity: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
-            FileText: () => <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
-            Mic: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>,
-            ChevronLeft: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
-            LogOut: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
-            Clock: () => <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Dashboard: ({className}) => <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>,
+            Audio: ({className}) => <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>,
+            Retake: ({className}) => <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+            Export: ({className}) => <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>,
+            LogOut: ({className}) => <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
+            ChevronLeft: ({className}) => <svg className={className} width="20" height="20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
+            Clock: ({className}) => <svg className={className} width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>,
+            Copy: ({className}) => <svg className={className} width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
+            Alert: ({className}) => <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
+            X: ({className}) => <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+            Menu: ({className}) => <svg className={className} width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         };
 
-        // 💡 ฟังก์ชันจำลองการส่งอีเมล (Auto-Email System)
         const sendCertificateEmail = async (email, name, pkScore, pkAttempts, audioScore, audioAttempts) => {
             console.log(`📧 [SYSTEM] กำลังจำลองส่งอีเมลไปยัง: ${email}`);
             return new Promise(resolve => setTimeout(resolve, 1500));
         };
 
-        // Utility: Group By
-        const groupBy = (array, keyFn) => {
-            return array.reduce((result, item) => {
-                const key = keyFn(item);
-                if (!result[key]) result[key] = [];
-                result[key].push(item);
-                return result;
-            }, {});
-        };
-
-        // Date Formatter
+        const groupBy = (array, keyFn) => array.reduce((result, item) => { const key = keyFn(item); if (!result[key]) result[key] = []; result[key].push(item); return result; }, {});
+        
         const formatThaiDateTime = (dateString) => {
-            if (!dateString) return "ไม่ระบุเวลา";
-            const date = new Date(dateString);
-            return date.toLocaleDateString('th-TH', { 
-                year: 'numeric', month: 'short', day: 'numeric', 
-                hour: '2-digit', minute: '2-digit' 
-            }) + ' น.';
+            if (!dateString) return "-";
+            return new Date(dateString).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.';
         };
 
         // ==========================================
-        // MAIN APP COMPONENT
+        // ERROR BOUNDARY
+        // ==========================================
+        class ErrorBoundary extends React.Component {
+            constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+            static getDerivedStateFromError(error) { return { hasError: true, error }; }
+            componentDidCatch(error) { console.error(error); }
+            render() {
+                if (this.state.hasError) return (
+                    <div className="min-h-screen bg-surface flex items-center justify-center p-6">
+                        <div className="bg-white p-8 rounded-[24px] shadow-card max-w-lg w-full text-center border-t-4 border-danger">
+                            <Icons.Alert className="w-12 h-12 text-danger mx-auto mb-4"/>
+                            <h2 className="text-xl font-black text-brandNavy mb-2">System Error</h2>
+                            <p className="text-sm font-bold text-slate-500 mb-6">เกิดข้อผิดพลาดในการแสดงผล กรุณาโหลดหน้าจอใหม่</p>
+                            <button onClick={() => window.location.reload()} className="bg-primary text-white py-3 px-6 rounded-xl font-bold w-full btn-press">Reload Portal</button>
+                        </div>
+                    </div>
+                );
+                return this.props.children; 
+            }
+        }
+
+        // ==========================================
+        // APP ENTRY & LOGIN
         // ==========================================
         function App() {
             const [user, setUser] = useState(null); 
@@ -123,165 +135,110 @@
             const [isLoading, setIsLoading] = useState(true);
 
             const fetchData = async () => {
-                const [resU, resS, resA] = await Promise.all([ 
-                    supabase.from('users').select('*'), 
-                    supabase.from('exam_sessions').select('*'), 
-                    supabase.from('audio_submissions').select('*') 
-                ]);
-                const sessMap = {}; 
-                if(resS.data) resS.data.forEach(s => sessMap[s.user_id] = s);
-                setDb({ users: resU.data || [], sessions: sessMap, audioSubs: resA.data || [] }); 
-                setIsLoading(false);
+                try {
+                    const [resU, resS, resA] = await Promise.all([ 
+                        supabase.from('users').select('*'), 
+                        supabase.from('exam_sessions').select('*'), 
+                        supabase.from('audio_submissions').select('*') 
+                    ]);
+                    const sessMap = {}; if(resS.data) resS.data.forEach(s => sessMap[s.user_id] = s);
+                    setDb({ users: resU.data || [], sessions: sessMap, audioSubs: resA.data || [] }); 
+                } catch (error) { console.error(error); } finally { setIsLoading(false); }
             };
 
             useEffect(() => { 
-                const savedUser = localStorage.getItem('ttb_mgmt_user'); 
-                if (savedUser) { 
-                    setUser(JSON.parse(savedUser)); 
-                    fetchData(); 
-                } else {
-                    setIsLoading(false); 
-                }
+                const saved = localStorage.getItem('ttb_mgmt_user'); 
+                if (saved) { setUser(JSON.parse(saved)); fetchData(); } else setIsLoading(false);
             }, []);
             
             const handleLogin = async (e) => { 
-                e.preventDefault(); 
-                const empId = e.target.username.value; 
-                const fName = e.target.password.value; 
-                const { data } = await supabase.from('users').select('*').eq('employee_id', empId).ilike('first_name_en', fName).single(); 
-                if (data && (data.role === 'Trainer' || data.role === 'Admin')) { 
-                    setUser(data); 
-                    localStorage.setItem('ttb_mgmt_user', JSON.stringify(data)); 
-                    fetchData(); 
-                } else {
-                    alert('Access Denied: ไม่พบข้อมูล หรือไม่มีสิทธิ์เข้าถึง (ต้องเป็น Trainer/Admin)'); 
-                }
+                e.preventDefault(); setIsLoading(true);
+                try {
+                    const { data } = await supabase.from('users').select('*').eq('employee_id', e.target.username.value).ilike('first_name_en', e.target.password.value).maybeSingle(); 
+                    if (data && (data.role === 'Trainer' || data.role === 'Admin')) { 
+                        setUser(data); localStorage.setItem('ttb_mgmt_user', JSON.stringify(data)); await fetchData(); 
+                    } else { alert('Access Denied: ไม่พบข้อมูล หรือไม่มีสิทธิ์เข้าถึง'); setIsLoading(false); }
+                } catch(err) { alert('Connection Error'); setIsLoading(false); }
             };
 
-            if (isLoading) return <div className="h-screen w-full flex flex-col items-center justify-center text-primary font-bold"><div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>Loading Portal...</div>;
+            if (isLoading) return (
+                <div className="h-screen w-full flex flex-col items-center justify-center bg-surface">
+                    <div className="w-12 h-12 border-4 border-blue-100 border-t-primary rounded-full animate-spin mb-4"></div>
+                    <p className="text-primary font-bold tracking-widest uppercase text-xs">Loading Portal...</p>
+                </div>
+            );
             
             if (!user) return (
-                <div className="h-screen w-full flex items-center justify-center bg-brandNavy">
-                    <form onSubmit={handleLogin} className="bg-white p-8 rounded-[32px] w-[360px] shadow-2xl animate-slide-up">
-                        <div className="w-16 h-16 bg-blue-50 text-primary rounded-2xl flex items-center justify-center text-2xl mx-auto mb-6 shadow-inner">👨‍🏫</div>
-                        <h2 className="text-2xl font-black mb-4 text-center text-brandNavy">Trainer Portal</h2>
-                        <input name="username" placeholder="Employee ID" className="w-full p-4 bg-surface border border-slate-200 rounded-2xl mb-4 font-bold text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all" required />
-                        <input type="password" name="password" placeholder="First Name (EN)" className="w-full p-4 bg-surface border border-slate-200 rounded-2xl mb-6 font-bold text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all" required />
-                        <button className="w-full bg-primary hover:bg-primaryDark text-white py-4 rounded-2xl font-black transition-colors btn-modern shadow-md">Secure Login</button>
+                <div className="h-screen w-full flex items-center justify-center bg-surface p-4 relative overflow-hidden">
+                    <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px]"></div>
+                    
+                    <form onSubmit={handleLogin} className="bg-white p-10 rounded-[32px] w-full max-w-sm shadow-card animate-slide-up relative z-10 border border-slate-100">
+                        <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-primary mx-auto mb-6 shadow-inner"><Icons.Dashboard className="w-8 h-8"/></div>
+                        <h2 className="text-2xl font-black mb-1 text-center text-brandNavy">Trainer Portal</h2>
+                        <p className="text-center text-slate-500 text-xs font-bold uppercase tracking-widest mb-8">Management System</p>
+                        
+                        <div className="space-y-4 mb-8">
+                            <div>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block ml-1">Employee ID</label>
+                                <input name="username" placeholder="e.g. 000123" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-brandNavy outline-none focus:border-primary focus:bg-white transition-all" required />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block ml-1">First Name (EN)</label>
+                                <input type="password" name="password" placeholder="e.g. Somchai" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-brandNavy outline-none focus:border-primary focus:bg-white transition-all" required />
+                            </div>
+                        </div>
+                        <button className="w-full bg-primary hover:bg-blue-700 text-white py-4 rounded-xl font-black text-sm tracking-widest uppercase transition-colors shadow-soft btn-press">Sign In</button>
                     </form>
                 </div>
             );
 
-            return (
-                <div className="flex h-screen w-full bg-surface text-brandNavy flex-col">
-                    <main className="flex-1 overflow-y-auto px-4 md:px-8 custom-scrollbar">
-                        <TrainerApp trainer={user} db={db} refreshData={fetchData} onLogout={()=>{setUser(null); localStorage.removeItem('ttb_mgmt_user');}} />
-                    </main>
-                    
-                    {/* 💡 Footer Credit ตาม Requirement */}
-                    <footer className="bg-surface text-center py-5 mt-auto text-[10px] font-black text-slate-400 uppercase tracking-widest border-t border-slate-200 shrink-0">
-                        Powered by : PRU ACADEMY <span className="text-primary">[ttb training team]</span>
-                    </footer>
-                </div>
-            );
+            return <MainLayout trainer={user} db={db} refreshData={fetchData} onLogout={()=>{setUser(null); localStorage.removeItem('ttb_mgmt_user');}} />;
         }
 
         // ==========================================
-        // EXPORT MODAL COMPONENT (Advanced Export)
+        // EXPORT MODAL 
         // ==========================================
         function ExportModal({ onClose, db }) {
             const [filter, setFilter] = useState({ startDate: '', endDate: '', rh: 'All', zone: 'All', status: 'All' });
 
-            const handleRhChange = (e) => { setFilter({ ...filter, rh: e.target.value, zone: 'All' }); };
-
             const handleExport = () => {
                 const candidates = db.users.filter(u => u.role === 'Candidate');
-                
                 let filteredData = candidates.filter(u => {
                     const session = db.sessions[u.id] || {};
                     const sessDate = session.updated_at ? new Date(session.updated_at).toISOString().split('T')[0] : '';
-                    
-                    const matchRH = filter.rh === 'All' || u.rh === filter.rh;
-                    const matchZone = filter.zone === 'All' || u.zone === filter.zone;
-                    const matchStatus = filter.status === 'All' || (session.overall_status || 'NOT_STARTED') === filter.status;
-                    
-                    let matchDate = true;
-                    if (filter.startDate && sessDate) matchDate = sessDate >= filter.startDate;
-                    if (filter.endDate && sessDate && matchDate) matchDate = sessDate <= filter.endDate;
-
-                    return matchRH && matchZone && matchStatus && matchDate;
+                    return (filter.rh === 'All' || u.rh === filter.rh) && (filter.zone === 'All' || u.zone === filter.zone) &&
+                           (filter.status === 'All' || (session.overall_status || 'NOT_STARTED') === filter.status) &&
+                           (!filter.startDate || sessDate >= filter.startDate) && (!filter.endDate || sessDate <= filter.endDate);
                 });
-
-                if(filteredData.length === 0) return alert("ไม่พบข้อมูลตามเงื่อนไขที่ระบุ");
+                if(filteredData.length === 0) return alert("ไม่พบข้อมูลตามเงื่อนไข");
 
                 const excelData = filteredData.map((u, i) => {
-                    const sess = db.sessions[u.id] || {};
-                    return {
-                        "No.": i + 1,
-                        "รหัสพนักงาน": u.employee_id,
-                        "ชื่อ-นามสกุล": `${u.first_name_en} ${u.last_name_en || ''}`,
-                        "อีเมล": u.email || '-',
-                        "ภูมิภาค (RH)": u.rh || '-',
-                        "สาขา/โซน": u.zone || '-',
-                        "คะแนนทฤษฎี": sess.pk_score !== null ? `${sess.pk_score}%` : 'ยังไม่สอบ',
-                        "รอบสอบทฤษฎี": sess.pk_attempts || 0,
-                        "คะแนนปฏิบัติ": sess.trainer_score !== null ? `${sess.trainer_score}%` : 'รอประเมิน',
-                        "รอบสอบปฏิบัติ": sess.trainer_attempts || 0,
-                        "สถานะการประเมินรวม": sess.overall_status || 'NOT_STARTED',
-                        "ล็อกสัมภาษณ์สด": sess.eval_lock_mode === 'LIVE' ? 'Yes' : 'No',
-                        "จัดส่งใบ Certificate": sess.cert_sent ? 'ส่งแล้ว' : 'ยังไม่ส่ง',
-                        "วันที่อัปเดตล่าสุด": sess.updated_at ? new Date(sess.updated_at).toLocaleString('th-TH') : '-'
-                    };
+                    const s = db.sessions[u.id] || {};
+                    return { "No": i+1, "EmpID": u.employee_id, "Name": `${u.first_name_en} ${u.last_name_en||''}`, "RH": u.rh, "Zone": u.zone, "Theory Score": s.pk_score!==null?`${s.pk_score}%`:'-', "Audio Score": s.trainer_score!==null?`${s.trainer_score}%`:'-', "Status": s.overall_status||'NOT_STARTED', "Update Date": s.updated_at?new Date(s.updated_at).toLocaleDateString('th-TH'):'-' };
                 });
 
-                const worksheet = XLSX.utils.json_to_sheet(excelData);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
-                
-                const fileName = `TTB_Report_${filter.rh}_${new Date().toISOString().slice(0,10)}.xlsx`;
-                XLSX.writeFile(workbook, fileName);
-                onClose();
+                const ws = XLSX.utils.json_to_sheet(excelData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Report");
+                XLSX.writeFile(wb, `TTB_Report_${filter.rh}_${new Date().toISOString().slice(0,10)}.xlsx`); onClose();
             };
 
             return (
-                <div className="fixed inset-0 bg-brandNavy/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl animate-pop-in overflow-hidden border border-slate-100">
+                <div className="fixed inset-0 bg-brandNavy/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-[32px] shadow-card animate-pop-in overflow-hidden border border-slate-100">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-surface">
-                            <h2 className="text-lg font-black text-brandNavy flex items-center"><Icons.Download /><span className="ml-2">Export Data Report</span></h2>
-                            <button onClick={onClose} className="text-slate-400 hover:text-danger"><Icons.X /></button>
+                            <h2 className="text-lg font-black flex items-center text-brandNavy"><Icons.Export className="w-5 h-5 text-primary mr-2"/> Export Custom Report</h2>
+                            <button onClick={onClose} className="text-slate-400 hover:text-danger"><Icons.X className="w-6 h-6"/></button>
                         </div>
-                        <div className="p-8 space-y-4">
+                        <div className="p-8 space-y-5">
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-[10px] font-black text-textMuted uppercase tracking-widest mb-1.5 block">Start Date</label><input type="date" value={filter.startDate} onChange={e=>setFilter({...filter, startDate: e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary" /></div>
-                                <div><label className="text-[10px] font-black text-textMuted uppercase tracking-widest mb-1.5 block">End Date</label><input type="date" value={filter.endDate} onChange={e=>setFilter({...filter, endDate: e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary" /></div>
+                                <div><label className="text-[10px] font-black text-slate-500 uppercase mb-1.5 block">Start Date</label><input type="date" value={filter.startDate} onChange={e=>setFilter({...filter, startDate:e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary" /></div>
+                                <div><label className="text-[10px] font-black text-slate-500 uppercase mb-1.5 block">End Date</label><input type="date" value={filter.endDate} onChange={e=>setFilter({...filter, endDate:e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary" /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-[10px] font-black text-textMuted uppercase tracking-widest mb-1.5 block">Region (RH)</label>
-                                    <select value={filter.rh} onChange={handleRhChange} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold cursor-pointer outline-none focus:border-primary">
-                                        <option value="All">ทุกภูมิภาค</option>
-                                        {Object.keys(RH_ZONES).map(rh => <option key={rh} value={rh}>{rh}</option>)}
-                                    </select>
-                                </div>
-                                <div><label className="text-[10px] font-black text-textMuted uppercase tracking-widest mb-1.5 block">Zone</label>
-                                    <select value={filter.zone} onChange={e=>setFilter({...filter, zone: e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold cursor-pointer outline-none focus:border-primary" disabled={filter.rh === 'All'}>
-                                        <option value="All">ทุกโซน</option>
-                                        {filter.rh !== 'All' && RH_ZONES[filter.rh].map(z => <option key={z} value={z}>{z}</option>)}
-                                    </select>
-                                </div>
+                                <div><label className="text-[10px] font-black text-slate-500 uppercase mb-1.5 block">Region (RH)</label><select value={filter.rh} onChange={e=>setFilter({...filter, rh:e.target.value, zone:'All'})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary"><option value="All">ทั้งหมด</option>{Object.keys(RH_ZONES).map(r=><option key={r} value={r}>{r}</option>)}</select></div>
+                                <div><label className="text-[10px] font-black text-slate-500 uppercase mb-1.5 block">Zone</label><select value={filter.zone} onChange={e=>setFilter({...filter, zone:e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary" disabled={filter.rh==='All'}><option value="All">ทั้งหมด</option>{filter.rh!=='All'&&RH_ZONES[filter.rh].map(z=><option key={z} value={z}>{z}</option>)}</select></div>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black text-textMuted uppercase tracking-widest mb-1.5 block">Status</label>
-                                <select value={filter.status} onChange={e=>setFilter({...filter, status: e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold cursor-pointer outline-none focus:border-primary">
-                                    <option value="All">ทุกสถานะ</option>
-                                    <option value="CERTIFIED">สอบผ่านแล้ว (Certified)</option>
-                                    <option value="IN_PROGRESS">รอตรวจ / รอสอบ (In Progress)</option>
-                                    <option value="FAILED">สอบไม่ผ่าน / รอซ่อม (Failed)</option>
-                                    <option value="NOT_STARTED">ยังไม่เริ่ม (Not Started)</option>
-                                </select>
-                            </div>
-                            <button onClick={handleExport} className="w-full bg-success hover:bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-md mt-6 transition-all flex items-center justify-center btn-modern text-sm uppercase tracking-wider">
-                                ดาวน์โหลดไฟล์ Excel (XLSX)
-                            </button>
+                            <div><label className="text-[10px] font-black text-slate-500 uppercase mb-1.5 block">Status</label><select value={filter.status} onChange={e=>setFilter({...filter, status:e.target.value})} className="w-full p-3.5 bg-surface border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-primary"><option value="All">ทั้งหมด</option><option value="CERTIFIED">Certified (ผ่าน)</option><option value="IN_PROGRESS">In Progress (รอตรวจ)</option><option value="FAILED">Failed (สอบตก/รอซ่อม)</option></select></div>
+                            <button onClick={handleExport} className="w-full bg-primary text-white font-black py-4 rounded-xl shadow-soft mt-4 transition-all btn-press text-sm uppercase tracking-wider">Download Excel (.xlsx)</button>
                         </div>
                     </div>
                 </div>
@@ -289,179 +246,139 @@
         }
 
         // ==========================================
-        // EVALUATION VIEW (Itemized Grading & Timeline)
+        // EVALUATION VIEW (1-10 Scoring & Cross-RH Warning)
         // ==========================================
         function EvaluationView({ candidate, db, trainer, onBack, gradeAudio, grantRetake, lockLiveInterview }) {
             const session = db.sessions[candidate.id];
             const isRetake = session?.overall_status === 'FAILED';
             
-            // ดึงไฟล์เสียงและเรียงตามลำดับ
-            const candidateAudio = db.audioSubs
+            // 💡 แก้ไขข้อ 1: กรองเอาเฉพาะ "ไฟล์ล่าสุด" ของแต่ละหมวดหมู่ (สูงสุด 3 ไฟล์) เพื่อป้องกันไฟล์ขยะ/ไฟล์ค้าง
+            const allAudios = db.audioSubs
                 .filter(s => s.employee_id === candidate.employee_id)
-                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-            // 💡 State สำหรับการให้คะแนนแบบ "รายข้อ" (Itemized Grading)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // เรียงจากใหม่สุดไปเก่าสุด
+                
+            const latestAudiosMap = {};
+            allAudios.forEach(audio => {
+                // เก็บเฉพาะไฟล์แรก (ที่ใหม่ที่สุด) ของแต่ละ Category
+                if (!latestAudiosMap[audio.category]) {
+                    latestAudiosMap[audio.category] = audio;
+                }
+            });
+            
+            // นำกลับมาเป็น Array และเรียงตามเวลาเก่าไปใหม่เพื่อแสดงผลเรียงข้อ
+            const audios = Object.values(latestAudiosMap).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
             const [itemScores, setItemScores] = useState({});
+            const [crossRHConfirmed, setCrossRHConfirmed] = useState(trainer.rh === candidate.rh);
 
-            // 💡 Auto-Calculate Average
-            const allScored = candidateAudio.length > 0 && candidateAudio.every((_, i) => itemScores[i] !== undefined && itemScores[i] !== '');
-            const totalScore = candidateAudio.reduce((sum, _, i) => sum + (parseInt(itemScores[i]) || 0), 0);
-            const averageScore = candidateAudio.length > 0 ? Math.round(totalScore / candidateAudio.length) : 0;
+            // Logic: 3 items, 1-10 each. Total = sum. Percent = (Total / 30) * 100
+            const allScored = audios.length > 0 && audios.every((_, i) => itemScores[i] !== undefined && itemScores[i] !== '');
+            const totalScore = audios.reduce((sum, _, i) => sum + (parseInt(itemScores[i]) || 0), 0);
+            const percentScore = audios.length > 0 ? Math.round((totalScore / (audios.length * 10)) * 100) : 0;
 
             const handleGrade = () => {
-                if (!allScored) return alert('⚠️ กรุณาระบุคะแนนให้ครบทุกข้อก่อนกดยืนยันผลประเมิน');
-                if (confirm(`คุณได้ให้คะแนนเฉลี่ย ${averageScore}% แก่ ${candidate.first_name_en}\nยืนยันผลการประเมินนี้หรือไม่?`)) {
-                    gradeAudio(candidate, averageScore);
-                    onBack();
+                if (!allScored) return alert('⚠️ กรุณาระบุคะแนนให้ครบทุกข้อ (1-10)');
+                const isPass = percentScore >= 80;
+                let msg = `คุณต้องการให้คะแนน ${totalScore}/${audios.length * 10} (คิดเป็น ${percentScore}%)\n`;
+                msg += isPass ? "ยืนยันผลการประเมินหรือไม่?" : "ซึ่งไม่ผ่านเกณฑ์ ยืนยันผลการประเมินหรือไม่?";
+                
+                if (confirm(msg)) {
+                    gradeAudio(candidate, percentScore); // Send percentage to DB
                 }
             };
 
-            const copyToClipboard = (text) => {
-                const el = document.createElement('textarea');
-                el.value = text;
-                document.body.appendChild(el);
-                el.select();
-                try {
-                    document.execCommand('copy');
-                    alert('✅ คัดลอกข้อความสำเร็จ! นำไปแปะเพื่อถาม AI ได้เลยครับ');
-                } catch (err) {
-                    alert('ไม่สามารถคัดลอกข้อความได้อัตโนมัติ');
-                }
-                document.body.removeChild(el);
-            };
-
-            return (
-                <div className="animate-fade-in max-w-5xl mx-auto pt-6 pb-12">
-                    <button onClick={onBack} className="text-slate-500 hover:text-primary font-black text-xs flex items-center mb-6 transition-colors uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit btn-modern">
-                        <Icons.ChevronLeft /> <span className="ml-1">กลับไปหน้ารายชื่อ</span>
-                    </button>
-                    
-                    {/* Header Profile */}
-                    <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div className="flex items-center">
-                            <div className="w-16 h-16 bg-blue-50 text-primary rounded-2xl flex items-center justify-center text-3xl font-black mr-5 border border-blue-100 shadow-inner">
-                                {candidate.first_name_en.charAt(0)}
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-black text-brandNavy">{candidate.first_name_en} {candidate.last_name_en}</h2>
-                                <p className="text-sm font-bold text-slate-500 mt-1">ID: {candidate.employee_id} <span className="mx-2 text-slate-300">|</span> RH: <span className="text-primary">{candidate.rh} ({candidate.zone})</span></p>
-                                <p className="text-xs font-bold text-brandNavy mt-2 bg-slate-100 inline-block px-3 py-1 rounded-md border border-slate-200">
-                                    ส่งสอบปฏิบัติมาแล้วรวม: <span className="text-danger font-black">{session?.trainer_attempts || 1} ครั้ง</span>
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex gap-3">
-                            <div className="bg-surface px-5 py-3 rounded-2xl text-center border border-slate-200 min-w-[100px]">
-                                <p className="text-[10px] font-black text-textMuted uppercase tracking-widest">ทฤษฎี (Theory)</p>
-                                <p className="text-xl font-black text-primary">{session?.pk_score}%</p>
+            // Cross-RH Warning Modal
+            if (!crossRHConfirmed) {
+                return (
+                    <div className="absolute inset-0 bg-brandNavy/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-fade-in">
+                        <div className="bg-white rounded-[24px] p-8 max-w-sm w-full shadow-card text-center border-t-4 border-warning">
+                            <Icons.Alert className="w-16 h-16 text-warning mx-auto mb-4" />
+                            <h2 className="text-xl font-black text-brandNavy mb-2">คำเตือน: ประเมินข้ามเขต</h2>
+                            <p className="text-sm font-bold text-slate-500 mb-6 leading-relaxed">
+                                ผู้เข้าสอบรายนี้อยู่ในเขต <b>{candidate.rh}</b><br/>ซึ่งอยู่นอกเหนือพื้นที่รับผิดชอบของคุณ ({trainer.rh})<br/><br/>
+                                <span className="text-xs">หากกดยืนยัน ระบบจะบันทึก Log และส่งแจ้งเตือนไปยัง Trainer เจ้าของพื้นที่</span>
+                            </p>
+                            <div className="flex gap-3">
+                                <button onClick={onBack} className="w-1/2 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl btn-press">ยกเลิก</button>
+                                <button onClick={() => setCrossRHConfirmed(true)} className="w-1/2 bg-warning text-white font-black py-3 rounded-xl btn-press shadow-sm">ยืนยันตรวจ</button>
                             </div>
                         </div>
                     </div>
+                );
+            }
 
-                    {/* Submissions List & Itemized Grading */}
-                    <div className="space-y-6 mb-10">
-                        <h3 className="font-black text-xl text-brandNavy flex items-center pl-2">
-                            <Icons.Mic /> <span className="ml-2">คำตอบเสียงที่บันทึกไว้ ({candidateAudio.length} ข้อ)</span>
-                        </h3>
-                        
-                        {candidateAudio.length === 0 ? (
-                            <div className="bg-slate-50 py-16 rounded-[32px] text-center border-2 border-dashed border-slate-200">
-                                <p className="text-slate-400 font-bold">ไม่พบไฟล์เสียงในระบบของพนักงานรายนี้</p>
+            return (
+                <div className="animate-slide-up w-full max-w-3xl mx-auto pb-32">
+                    <div className="flex items-center justify-between mb-6">
+                        <button onClick={onBack} className="flex items-center text-slate-500 hover:text-primary font-bold btn-press bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100"><Icons.ChevronLeft className="w-4 h-4 mr-1"/> กลับ</button>
+                    </div>
+
+                    <div className="bg-white rounded-[24px] p-6 md:p-8 border border-slate-100 shadow-sm mb-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <div className="flex items-center">
+                            <div className="w-16 h-16 bg-blue-50 text-primary rounded-[20px] flex items-center justify-center text-2xl font-black mr-5 border border-blue-100">{candidate.first_name_en.charAt(0)}</div>
+                            <div>
+                                <h1 className="text-2xl font-black text-brandNavy">{candidate.first_name_en} {candidate.last_name_en}</h1>
+                                <p className="text-slate-500 font-bold text-xs mt-1">ID: {candidate.employee_id} <span className="mx-2 text-slate-300">|</span> <span className="text-primary">{candidate.rh} ({candidate.zone})</span></p>
                             </div>
-                        ) : candidateAudio.map((sub, idx) => (
-                            <div key={idx} className="bg-white p-6 md:p-8 rounded-[32px] shadow-sm border border-slate-100 relative overflow-hidden">
+                        </div>
+                        <div className="flex gap-3">
+                            <div className="bg-surface px-4 py-2 rounded-xl border border-slate-200 text-center"><p className="text-[10px] font-black text-slate-400 uppercase">ทฤษฎี</p><p className="text-lg font-black text-brandNavy">{session?.pk_score}%</p></div>
+                            <div className="bg-orange-50 px-4 py-2 rounded-xl border border-orange-100 text-center"><p className="text-[10px] font-black text-orange-400 uppercase">รอบที่</p><p className="text-lg font-black text-orange-600">#{session?.trainer_attempts || 1}</p></div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {audios.length === 0 ? (
+                            <div className="bg-white rounded-[24px] p-12 text-center text-slate-400 border border-slate-100 font-bold">ไม่พบข้อมูลไฟล์เสียง</div>
+                        ) : audios.map((sub, idx) => (
+                            <div key={idx} className="bg-white rounded-[24px] p-6 md:p-8 shadow-sm border border-slate-100 relative">
+                                <div className="flex justify-between items-center mb-4 border-b border-slate-50 pb-4">
+                                    <span className="bg-brandNavy text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">{sub.category}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 flex items-center"><Icons.Clock className="w-3.5 h-3.5 mr-1"/> {formatThaiDateTime(sub.created_at)}</span>
+                                </div>
+                                <p className="font-bold text-brandNavy text-sm mb-5 bg-surface p-4 rounded-xl">{sub.question}</p>
+                                {sub.audio_url ? <audio controls src={sub.audio_url} className="w-full h-10 mb-5 outline-none"/> : <div className="p-3 bg-red-50 text-danger rounded-lg text-xs font-bold mb-5">⚠️ Audio missing</div>}
                                 
-                                {/* 💡 Timestamp ของแต่ละข้อ */}
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-5 gap-3 border-b border-slate-100 pb-4">
-                                    <span className="bg-blue-50 text-primary px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-100 inline-block w-fit">
-                                        ข้อที่ {idx+1} : {sub.category}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-slate-400 flex items-center bg-surface px-3 py-1.5 rounded-lg border border-slate-100 w-fit">
-                                        <Icons.Clock /> <span className="ml-1.5">เวลาที่บันทึก: {formatThaiDateTime(sub.created_at)}</span>
-                                    </span>
+                                <div className="bg-surface p-4 rounded-xl border border-slate-200 mb-6">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Transcript</span>
+                                        <button onClick={()=>{navigator.clipboard.writeText(sub.transcript); alert('Copied!');}} className="text-primary text-[10px] font-black uppercase tracking-widest flex items-center bg-blue-50 px-2 py-1 rounded-md btn-press"><Icons.Copy className="w-3 h-3 mr-1"/> Copy</button>
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-600 leading-relaxed italic">"{sub.transcript}"</p>
                                 </div>
 
-                                <p className="font-bold text-textMain text-base mb-6 leading-relaxed bg-surface p-5 rounded-2xl border border-slate-200">
-                                    {sub.question}
-                                </p>
-                                
-                                {sub.audio_url ? (
-                                    <div className="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner">
-                                        <audio controls src={sub.audio_url} className="w-full h-12 rounded-xl outline-none" />
-                                    </div>
-                                ) : (
-                                    <div className="bg-red-50 text-danger p-4 rounded-2xl text-xs font-bold mb-6 border border-red-100 flex items-center">
-                                        ⚠️ ไม่พบไฟล์เสียง (อาจเกิดข้อผิดพลาดในการเชื่อมต่อของพนักงาน)
-                                    </div>
-                                )}
-
-                                {/* Transcript Box */}
-                                <div className="bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-sm mb-6">
-                                    <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                                        <span className="text-[11px] font-black text-textMuted uppercase tracking-widest flex items-center">
-                                            <Icons.FileText /> <span className="ml-1.5">Transcript (ถอดข้อความเสียงอัตโนมัติ)</span>
-                                        </span>
-                                        <button onClick={() => copyToClipboard(sub.transcript)} className="bg-surface hover:bg-primaryLight border border-slate-200 text-primary hover:text-primaryDark hover:border-primary/50 px-4 py-2 rounded-xl text-[11px] font-black flex items-center transition-all shadow-sm btn-modern">
-                                            <Icons.Copy /> <span className="ml-1.5">คัดลอกถาม AI</span>
-                                        </button>
-                                    </div>
-                                    <p className="text-[13px] font-bold text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                        {sub.transcript || "- ไม่พบข้อความเสียงที่ถูกถอดความ -"}
-                                    </p>
-                                </div>
-
-                                {/* 💡 Itemized Grading Input */}
                                 {!isRetake && (
-                                    <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 flex items-center justify-between">
-                                        <div>
-                                            <p className="font-black text-brandNavy text-sm">ให้คะแนนข้อที่ {idx+1}</p>
-                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Score (0-100)</p>
-                                        </div>
-                                        <input 
-                                            type="number" min="0" max="100" 
-                                            value={itemScores[idx] || ''} 
-                                            onChange={e => setItemScores({...itemScores, [idx]: e.target.value})} 
-                                            placeholder="ระบุคะแนน" 
-                                            className="w-32 p-3 rounded-xl font-black text-lg text-center text-primary border border-blue-200 outline-none focus:ring-4 focus:ring-primary/20 shadow-inner" 
-                                        />
+                                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                                        <p className="font-black text-brandNavy text-sm">ให้คะแนนข้อนี้ (1-10)</p>
+                                        <input type="number" min="1" max="10" value={itemScores[idx] || ''} onChange={e=>setItemScores({...itemScores, [idx]:e.target.value})} className="w-20 p-2.5 rounded-lg font-black text-xl text-center text-primary border border-blue-200 outline-none focus:ring-2 focus:ring-primary/20 shadow-inner bg-white" placeholder="0"/>
                                     </div>
                                 )}
                             </div>
                         ))}
                     </div>
 
-                    {/* Action / Scoring Panel */}
-                    {isRetake ? (
-                        <div className="bg-red-50 p-6 md:p-8 rounded-[32px] border-2 border-red-200 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-                            <div className="w-full md:w-1/2">
-                                <h3 className="font-black text-2xl text-danger mb-2">สถานะ: สอบตก (คะแนนเดิม {session.trainer_score}%)</h3>
-                                <p className="text-sm font-bold text-red-700">กรุณาเลือกดำเนินการกับผู้เข้าสอบรายนี้ เพื่อให้ดำเนินการในขั้นตอนต่อไป</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-center w-full md:w-1/2 gap-3">
-                                <button onClick={() => { grantRetake(candidate); onBack(); }} className="w-full bg-white border-2 border-success text-success hover:bg-success hover:text-white py-4 rounded-xl font-black text-sm transition-colors shadow-sm btn-modern">
-                                    {session?.eval_lock_mode === 'LIVE' ? 'ปลดล็อกอัดเสียง (Audio)' : 'อนุญาตให้อัดเสียงใหม่'}
-                                </button>
-                                {session?.eval_lock_mode !== 'LIVE' && (
-                                    <button onClick={() => { lockLiveInterview(candidate); onBack(); }} className="w-full bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white py-4 rounded-xl font-black text-sm transition-colors shadow-sm btn-modern">
-                                        บังคับสัมภาษณ์สด (Live)
-                                    </button>
-                                )}
+                    {isRetake && (
+                        <div className="bg-red-50 border border-red-200 p-8 rounded-[24px] mt-8 text-center shadow-sm">
+                            <h3 className="font-black text-xl text-danger mb-2">ผู้สอบไม่ผ่านเกณฑ์ (คะแนนเดิม {session.trainer_score}%)</h3>
+                            <p className="text-xs font-bold text-red-700 mb-6">กรุณาเลือกวิธีการสอบซ่อม (Retake Routing)</p>
+                            <div className="flex flex-col sm:flex-row justify-center gap-4">
+                                <button onClick={()=>{grantRetake(candidate); onBack();}} className="bg-white border-2 border-danger text-danger px-6 py-3 rounded-xl font-black text-sm btn-press w-full sm:w-auto shadow-sm">ให้สิทธิ์ผู้สอบสุ่มใหม่ (Self-Retake)</button>
+                                <button onClick={()=>{lockLiveInterview(candidate); onBack();}} className="bg-danger text-white px-6 py-3 rounded-xl font-black text-sm btn-press w-full sm:w-auto shadow-sm">นัดหมายสัมภาษณ์สด (Live Test)</button>
                             </div>
                         </div>
-                    ) : (
-                        <div className="bg-brandNavy p-6 md:p-8 rounded-[32px] shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 border-4 border-slate-800 sticky bottom-4 z-50">
-                            <div className="text-white w-full md:w-1/2">
-                                <h3 className="font-black text-2xl mb-1">สรุปผลประเมิน</h3>
-                                <p className="text-xs font-bold text-slate-400 leading-relaxed">คะแนนจะถูกเฉลี่ยจากทุกข้ออัตโนมัติ (เกณฑ์ผ่าน 80%)<br/>ระบบจะดำเนินการส่งใบ Certificate ให้อัตโนมัติหากผ่านเกณฑ์</p>
-                            </div>
-                            <div className="flex items-center w-full md:w-1/2 gap-4">
-                                <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-center w-1/2">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">คะแนนเฉลี่ย</p>
-                                    <p className={`text-3xl font-black ${averageScore >= 80 ? 'text-success' : 'text-danger'}`}>{averageScore}%</p>
+                    )}
+
+                    {!isRetake && (
+                        <div className="fixed bottom-0 left-0 md:left-64 w-full md:w-[calc(100%-16rem)] bg-white/90 backdrop-blur-md border-t border-slate-200 p-4 md:p-6 z-40 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                            <div className="max-w-3xl mx-auto flex items-center justify-between gap-6 pr-4 md:pr-0">
+                                <div>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Score</span>
+                                    <div className="flex items-baseline">
+                                        <span className="text-3xl font-black text-brandNavy">{totalScore}</span><span className="text-sm font-bold text-slate-400 ml-1">/ {audios.length*10}</span>
+                                        <span className={`ml-3 text-lg font-black ${percentScore >= 80 ? 'text-success':'text-danger'}`}>({percentScore}%)</span>
+                                    </div>
                                 </div>
-                                <button onClick={handleGrade} disabled={!allScored} className="w-1/2 bg-success hover:bg-emerald-500 disabled:bg-slate-600 disabled:text-slate-400 text-white p-4 rounded-2xl font-black text-sm shadow-md transition-all btn-modern h-full">
-                                    ยืนยันผลประเมิน
-                                </button>
+                                <button onClick={handleGrade} disabled={!allScored} className="bg-primary disabled:bg-slate-300 text-white py-3.5 px-8 rounded-xl font-black uppercase tracking-widest text-sm shadow-soft btn-press">Submit Result</button>
                             </div>
                         </div>
                     )}
@@ -470,296 +387,280 @@
         }
 
         // ==========================================
-        // MAIN TRAINER APP (Dashboard & Queues)
+        // LAYOUT & ROUTING (Sidebar + Content)
         // ==========================================
-        function TrainerApp({ trainer, db, refreshData, onLogout }) {
-            const [tab, setTab] = useState('dashboard');
-            const [showExport, setShowExport] = useState(false);
+        function MainLayout({ trainer, db, refreshData, onLogout }) {
+            const [view, setView] = useState('dashboard');
             const [selectedCandidate, setSelectedCandidate] = useState(null);
+            const [showExport, setShowExport] = useState(false);
+            const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
             // Data Prep
             const candidates = db.users.filter(u => u.role === 'Candidate');
-            const groupedAudios = {}; 
-            db.audioSubs.forEach(sub => { 
-                if (!groupedAudios[sub.employee_id]) groupedAudios[sub.employee_id] = []; 
-                groupedAudios[sub.employee_id].push(sub); 
-            });
-            
-            // Audio Queue
-            const audioQueue = candidates.filter(c => { 
-                const subs = groupedAudios[c.employee_id] || []; 
-                const session = db.sessions[c.id]; 
-                return session?.pk_passed && subs.length >= 1 && session.trainer_score === null; 
-            });
+            const groupedAudios = groupBy(db.audioSubs, s => s.employee_id);
+            const audioQueue = candidates.filter(c => db.sessions[c.id]?.pk_passed && groupedAudios[c.employee_id]?.length > 0 && db.sessions[c.id].trainer_score === null);
+            const retakeQueue = candidates.filter(c => db.sessions[c.id]?.trainer_score !== null && db.sessions[c.id]?.overall_status === 'FAILED');
 
-            // Retake Queue
-            const retakeQueue = candidates.filter(c => { 
-                const session = db.sessions[c.id]; 
-                return session?.trainer_score !== null && session?.overall_status === 'FAILED'; 
-            });
+            // Dashboard Stats Calculation
+            const stats = useMemo(() => {
+                let s = { total: candidates.length, failPK: 0, passPKNoAudio: 0, pendAudio: audioQueue.length, cert: 0, rhs: {} };
+                Object.keys(RH_ZONES).forEach(r => s.rhs[r] = { total:0, failPK:0, passPKNoAudio:0, pendAudio:0, cert:0, theorySum:0, theoryCount:0, audioSum:0, audioCount:0, zones:{} });
+                
+                let countryTheorySum=0, countryTheoryCount=0, countryAudioSum=0, countryAudioCount=0;
 
-            const allRhs = Array.from(new Set([...audioQueue.map(c=>c.rh), ...retakeQueue.map(c=>c.rh)])).sort();
+                candidates.forEach(c => {
+                    const sess = db.sessions[c.id] || {};
+                    const rh = c.rh || 'Unknown';
+                    if(!s.rhs[rh]) return; // ignore invalid RH
+                    
+                    s.rhs[rh].total++;
+                    if (!s.rhs[rh].zones[c.zone]) s.rhs[rh].zones[c.zone] = { sum:0, count:0 };
+
+                    // Status Logic
+                    if (!sess.pk_passed) { s.failPK++; s.rhs[rh].failPK++; }
+                    else if (sess.overall_status === 'CERTIFIED') { s.cert++; s.rhs[rh].cert++; }
+                    else if (audioQueue.find(aq=>aq.id===c.id)) { /* pendAudio handled above */ s.rhs[rh].pendAudio++; }
+                    else { s.passPKNoAudio++; s.rhs[rh].passPKNoAudio++; } // passed PK, but not submitted audio
+
+                    // Score Logic
+                    if (sess.pk_score !== null) { 
+                        countryTheorySum += sess.pk_score; countryTheoryCount++; 
+                        s.rhs[rh].theorySum += sess.pk_score; s.rhs[rh].theoryCount++;
+                    }
+                    if (sess.trainer_score !== null) { 
+                        countryAudioSum += sess.trainer_score; countryAudioCount++;
+                        s.rhs[rh].audioSum += sess.trainer_score; s.rhs[rh].audioCount++;
+                        s.rhs[rh].zones[c.zone].sum += sess.trainer_score; s.rhs[rh].zones[c.zone].count++;
+                    }
+                });
+
+                s.avgTheory = countryTheoryCount > 0 ? Math.round(countryTheorySum/countryTheoryCount) : 0;
+                s.avgAudio = countryAudioCount > 0 ? Math.round(countryAudioSum/countryAudioCount) : 0;
+                return s;
+            }, [candidates, db.sessions, audioQueue]);
 
             // Actions
-            const gradeAudio = async (c, score) => {
-                const passed = score >= 80;
-                const session = db.sessions[c.id];
-                const currentAttempts = session?.trainer_attempts || 1; 
+            const gradeAudio = async (c, scorePercent) => {
+                const passed = scorePercent >= 80; const sess = db.sessions[c.id];
+                const currentAttempts = sess?.trainer_attempts || 1;
                 let certSent = false;
-
+                
                 if (passed) {
-                    if (c.email && c.email.trim() !== '') {
-                        await sendCertificateEmail(c.email, c.first_name_en, session.pk_score, session.pk_attempts || 1, score, currentAttempts);
+                    if (c.email) {
+                        await sendCertificateEmail(c.email, c.first_name_en, sess.pk_score, sess.pk_attempts||1, scorePercent, currentAttempts);
                         certSent = true;
-                        alert(`✅ ประเมินผ่าน! (คะแนนเฉลี่ย ${score}%)\n\nระบบจำลองจัดส่งใบ Certificate ไปยังอีเมล: ${c.email} เรียบร้อยแล้ว`);
+                        alert(`✅ ยืนยันผลผ่าน! (${scorePercent}%)\nจัดส่งใบ Certificate ไปยังอีเมล ${c.email} เรียบร้อยแล้ว`);
                     } else {
-                        alert(`✅ ประเมินผ่าน! (คะแนนเฉลี่ย ${score}%)\n\n⚠️ แจ้งเตือน: ไม่พบอีเมลของผู้สอบรายนี้ ระบบจะเด้ง Pop-up ทวงถามเมื่อผู้สอบเข้าระบบครับ`);
+                        alert(`✅ ยืนยันผลผ่าน! (${scorePercent}%)\n⚠️ ไม่พบอีเมลผู้สอบ ระบบจะพักการส่งและแจ้งผู้สอบให้กรอกข้อมูลเมื่อเข้าระบบครั้งถัดไป`);
                     }
                 } else {
-                    alert(`❌ ไม่ผ่านเกณฑ์ (คะแนนเฉลี่ย ${score}%)\nผู้เข้าสอบถูกย้ายไปอยู่คิว 'รอพิจารณาสอบซ่อม (Retake Queue)' แล้ว`);
+                    // Fail -> doesn't alert here, handled by routing
                 }
 
                 await supabase.from('exam_sessions').update({ 
-                    trainer_score: score, trainer_passed: passed, trainer_attempts: currentAttempts,
-                    overall_status: passed ? 'CERTIFIED' : 'FAILED', cert_sent: certSent
+                    trainer_score: scorePercent, trainer_passed: passed, trainer_attempts: currentAttempts,
+                    overall_status: passed ? 'CERTIFIED' : 'FAILED', cert_sent: certSent 
                 }).eq('user_id', c.id);
-                
                 refreshData();
+                if(passed) setView('dashboard'); // If passed go home, if failed stay on Evaluation for routing
             };
 
             const grantRetake = async (c) => {
                 await supabase.from('audio_submissions').delete().eq('employee_id', c.employee_id);
                 await supabase.from('exam_sessions').update({ trainer_score: null, trainer_passed: false, overall_status: 'IN_PROGRESS', eval_lock_mode: 'AVAILABLE' }).eq('user_id', c.id);
-                alert(`อนุญาตให้ ${c.first_name_en} สอบซ่อม (อัดเสียงใหม่) สำเร็จ!`); 
-                refreshData();
+                alert(`ลบไฟล์เดิมและเปิดสิทธิ์สุ่มใหม่ให้ ${c.first_name_en} เรียบร้อยแล้ว`); refreshData(); setView('retake');
             };
 
             const lockLiveInterview = async (c) => {
                 await supabase.from('exam_sessions').update({ eval_lock_mode: 'LIVE' }).eq('user_id', c.id);
-                alert(`ดำเนินการล็อกสิทธิ์เป็นสัมภาษณ์สดเรียบร้อยแล้ว`); 
-                refreshData();
+                alert(`ล็อกสิทธิ์เป็นสัมภาษณ์สดเรียบร้อย`); refreshData(); setView('retake');
             };
 
-            if (selectedCandidate) {
-                return <EvaluationView candidate={selectedCandidate} db={db} trainer={trainer} onBack={() => setSelectedCandidate(null)} gradeAudio={gradeAudio} grantRetake={grantRetake} lockLiveInterview={lockLiveInterview} />;
-            }
+            const changeView = (v) => { setView(v); setSelectedCandidate(null); setIsMobileMenuOpen(false); };
 
-            // RENDER DASHBOARD
-            const renderDashboardTab = () => (
-                <div className="animate-slide-in pb-10">
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-black text-brandNavy mb-1">Queue Dashboard</h2>
-                        <p className="text-sm font-bold text-textMuted">สรุปคิวงานที่รอการดำเนินการทั้งหมด</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                        <div className="bg-primary text-white p-8 rounded-[32px] shadow-soft-3d flex items-center justify-between relative overflow-hidden">
-                            <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
-                            <div className="relative z-10">
-                                <p className="text-[11px] font-black uppercase tracking-widest opacity-80 mb-2">Audio Queue</p>
-                                <h3 className="text-5xl font-black mb-2">{audioQueue.length} <span className="text-sm font-bold opacity-80">คน</span></h3>
-                                <p className="text-xs font-bold opacity-90">รอตรวจประเมินไฟล์เสียง</p>
-                            </div>
-                            <div className="w-20 h-20 bg-white/20 rounded-[24px] flex items-center justify-center relative z-10 shadow-inner">
-                                <Icons.List />
-                            </div>
-                        </div>
-                        <div className="bg-danger text-white p-8 rounded-[32px] shadow-soft-3d flex items-center justify-between relative overflow-hidden">
-                            <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
-                            <div className="relative z-10">
-                                <p className="text-[11px] font-black uppercase tracking-widest opacity-80 mb-2">Retake Queue</p>
-                                <h3 className="text-5xl font-black mb-2">{retakeQueue.length} <span className="text-sm font-bold opacity-80">คน</span></h3>
-                                <p className="text-xs font-bold opacity-90">สอบตก รอการอนุมัติสอบซ่อม</p>
-                            </div>
-                            <div className="w-20 h-20 bg-white/20 rounded-[24px] flex items-center justify-center relative z-10 shadow-inner">
-                                <Icons.Activity />
-                            </div>
-                        </div>
-                    </div>
+            // 💡 แก้ไขข้อ 2: ฟังก์ชันสำหรับจับคู่สีของแต่ละ RH (ไม่มีสีแดง, RH5 เป็นสีฟ้าอมเขียว)
+            const getRhColorClass = (rh) => {
+                switch(rh) {
+                    case 'RH1': return 'bg-blue-100 text-blue-700 border-blue-200';
+                    case 'RH2': return 'bg-emerald-100 text-emerald-700 border-emerald-200'; // เขียวมรกต
+                    case 'RH3': return 'bg-purple-100 text-purple-700 border-purple-200'; // ม่วง
+                    case 'RH4': return 'bg-amber-100 text-amber-700 border-amber-200'; // ส้มทอง
+                    case 'RH5': return 'bg-teal-100 text-teal-700 border-teal-200'; // ฟ้าอมเขียว (Teal)
+                    default: return 'bg-slate-200 text-slate-700 border-slate-300'; // สีเทา
+                }
+            };
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-6 bg-surface border-b border-slate-100">
-                            <h3 className="font-black text-brandNavy text-base">การกระจายตัวของคิวงานตามภูมิภาค (RH Breakdown)</h3>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 text-textMuted text-[10px] uppercase tracking-widest border-b border-slate-100">
-                                    <tr>
-                                        <th className="p-5 pl-8">Region (RH)</th>
-                                        <th className="p-5 text-center text-primary">รอตรวจเสียง (Audio Queue)</th>
-                                        <th className="p-5 text-center text-danger">รออนุมัติซ่อม (Retake Queue)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50 text-sm font-bold">
-                                    {allRhs.length === 0 && (
-                                        <tr><td colSpan="3" className="p-10 text-center text-slate-400 font-bold">🎉 ไม่มีคิวงานค้างในระบบ</td></tr>
-                                    )}
-                                    {allRhs.map(rh => {
-                                        const aCount = audioQueue.filter(c => c.rh === rh).length;
-                                        const rCount = retakeQueue.filter(c => c.rh === rh).length;
-                                        return (
-                                            <tr key={rh} className="hover:bg-slate-50 transition-colors">
-                                                <td className="p-5 pl-8 text-brandNavy font-black text-base">{rh}</td>
-                                                <td className="p-5 text-center">
-                                                    <span className={`px-4 py-1.5 rounded-lg ${aCount > 0 ? 'bg-blue-50 text-primary' : 'text-slate-300'}`}>{aCount}</span>
-                                                </td>
-                                                <td className="p-5 text-center">
-                                                    <span className={`px-4 py-1.5 rounded-lg ${rCount > 0 ? 'bg-red-50 text-danger' : 'text-slate-300'}`}>{rCount}</span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const renderAudioTab = () => {
-                const groupedAudio = groupBy(audioQueue, c => c.rh);
+            // Render Queue List
+            const renderQueue = (queueType) => {
+                const q = queueType === 'audio' ? audioQueue : retakeQueue;
+                const grouped = groupBy(q, c => c.rh);
                 return (
-                    <div className="animate-fade-in pb-10">
-                        {Object.keys(groupedAudio).length === 0 ? (
-                             <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-slate-200">
-                                  <p className="text-slate-400 font-bold text-lg">🎉 ไม่มีคิวรอตรวจประเมินไฟล์เสียงในขณะนี้</p>
-                             </div>
-                        ) : (
-                             Object.keys(groupedAudio).sort().map(rh => (
-                                 <div key={rh} className="mb-10">
-                                     <div className="flex items-center mb-5">
-                                         <div className="w-2 h-8 bg-primary rounded-full mr-3"></div>
-                                         <h3 className="text-xl font-black text-brandNavy">{rh} <span className="text-slate-400 text-sm ml-2 font-bold">({groupedAudio[rh].length} คน)</span></h3>
-                                     </div>
-                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                         {groupedAudio[rh].map(c => {
-                                             const session = db.sessions[c.id];
-                                             return (
-                                                 <div key={c.id} className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 flex flex-col sm:flex-row justify-between gap-5 hover:shadow-md transition-all group">
-                                                     <div>
-                                                         <p className="font-black text-xl text-brandNavy">{c.first_name_en} {c.last_name_en}</p>
-                                                         <p className="text-xs font-bold text-slate-500 mt-1 mb-4">ID: {c.employee_id} <span className="mx-1 text-slate-300">|</span> Zone: {c.zone}</p>
-                                                         <div className="flex gap-2">
-                                                             <span className="bg-surface text-textMuted px-2.5 py-1 rounded-md text-[10px] font-black border border-slate-200">ทฤษฎี: <span className="text-primary">{session?.pk_score}%</span></span>
-                                                             <span className="bg-orange-50 text-warning px-2.5 py-1 rounded-md text-[10px] font-black border border-orange-100">ส่งสอบรอบที่: {session?.trainer_attempts || 1}</span>
-                                                         </div>
-                                                     </div>
-                                                     <div className="flex items-center sm:items-end">
-                                                         <button onClick={() => setSelectedCandidate(c)} className="w-full sm:w-auto bg-primary hover:bg-primaryDark text-white px-6 py-3.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center btn-modern group-hover:shadow-md">
-                                                             เข้าประเมิน <Icons.ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
-                                                         </button>
-                                                     </div>
-                                                 </div>
-                                             );
-                                         })}
-                                     </div>
-                                 </div>
-                             ))
-                        )}
+                    <div className="animate-fade-in pb-12">
+                        <div className="mb-6"><h2 className="text-2xl font-black text-brandNavy">{queueType === 'audio' ? 'Evaluation Queue' : 'Retake Management'}</h2><p className="text-sm font-bold text-slate-500">จัดการข้อมูลผู้เข้าสอบแยกตามภูมิภาค</p></div>
+                        {Object.keys(grouped).length === 0 ? (
+                            <div className="bg-white p-12 rounded-[24px] text-center border border-slate-100 shadow-sm"><p className="text-slate-400 font-bold">ไม่มีข้อมูลคิวงานในขณะนี้</p></div>
+                        ) : Object.keys(grouped).sort().map(rh => (
+                            <div key={rh} className="mb-8">
+                                <h3 className="text-sm font-black uppercase tracking-widest text-primary bg-blue-50 inline-block px-3 py-1 rounded-md mb-3">{rh}</h3>
+                                <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden">
+                                    {grouped[rh].map((c, i) => (
+                                        <div key={c.id} onClick={()=>{setSelectedCandidate(c); setView('eval');}} className={`p-4 md:p-5 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors ${i!==grouped[rh].length-1?'border-b border-slate-100':''}`}>
+                                            <div className="flex items-center gap-4">
+                                                {/* 💡 แก้ไขข้อ 2: เปลี่ยน Avatar เป็นชื่อ RH และใช้สีตามที่กำหนด */}
+                                                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-black shadow-inner border text-[10px] md:text-xs ${getRhColorClass(c.rh)}`}>
+                                                    {c.rh || 'HQ'}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-brandNavy text-sm md:text-base">{c.first_name_en} {c.last_name_en}</p>
+                                                    <p className="text-[10px] md:text-xs font-bold text-slate-400 mt-0.5">ID: {c.employee_id} | {c.zone}</p>
+                                                </div>
+                                            </div>
+                                            <button className="text-[10px] font-black uppercase tracking-widest text-primary bg-surface border border-slate-200 px-3 py-1.5 rounded-lg btn-press">Review</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 );
             };
 
-            const renderRetakeTab = () => {
-                const groupedRetake = groupBy(retakeQueue, c => c.rh);
+            // Progress Bar Helper
+            const ProgressBar = ({ s1, s2, s3, s4, total }) => {
+                if(total === 0) return <div className="h-2.5 bg-slate-100 rounded-full w-full"></div>;
                 return (
-                    <div className="animate-fade-in pb-10">
-                        {Object.keys(groupedRetake).length === 0 ? (
-                             <div className="text-center py-20 bg-red-50/50 rounded-[32px] border-2 border-dashed border-red-200">
-                                  <p className="text-red-400 font-bold text-lg">✨ ไม่มีพนักงานในคิวสอบซ่อม</p>
-                             </div>
-                        ) : (
-                             Object.keys(groupedRetake).sort().map(rh => (
-                                 <div key={rh} className="mb-10">
-                                     <div className="flex items-center mb-5">
-                                         <div className="w-2 h-8 bg-danger rounded-full mr-3"></div>
-                                         <h3 className="text-xl font-black text-danger">{rh} <span className="text-red-400 text-sm ml-2 font-bold">({groupedRetake[rh].length} คน)</span></h3>
-                                     </div>
-                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                         {groupedRetake[rh].map(c => {
-                                             const session = db.sessions[c.id];
-                                             const isLocked = session?.eval_lock_mode === 'LIVE';
-                                             return (
-                                                 <div key={c.id} className="bg-red-50/30 p-6 rounded-[24px] border border-red-100 flex flex-col justify-between gap-5 hover:bg-red-50 transition-all">
-                                                     <div>
-                                                         <p className="font-black text-xl text-red-900">{c.first_name_en} {c.last_name_en}</p>
-                                                         <p className="text-xs font-bold text-red-700 mt-1 mb-2">ID: {c.employee_id} <span className="mx-1 text-red-200">|</span> Zone: {c.zone}</p>
-                                                         <div className="bg-white/60 p-3 rounded-xl border border-red-100 inline-block mb-3">
-                                                            <p className="text-[11px] font-bold text-red-800">คะแนนรอบที่แล้ว: <span className="text-danger font-black text-base">{session?.trainer_score}%</span> <span className="mx-2 text-red-200">|</span> ส่งสอบไปแล้ว: <span className="text-danger font-black">{session?.trainer_attempts}</span> รอบ</p>
-                                                         </div>
-                                                         {isLocked && <div className="mt-1"><span className="bg-blue-100 text-blue-700 text-[10px] px-3 py-1.5 rounded-lg font-black uppercase tracking-widest border border-blue-200">🔒 ล็อกสถานะเป็น Live Interview</span></div>}
-                                                     </div>
-                                                     <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                                                         <button onClick={() => setSelectedCandidate(c)} className="bg-white border border-slate-300 text-slate-600 hover:text-brandNavy px-4 py-3 rounded-xl text-xs font-black transition-colors shadow-sm flex-1 btn-modern">
-                                                             ดูข้อมูลคำตอบเดิม
-                                                         </button>
-                                                         <button onClick={() => grantRetake(c)} className="bg-white border border-success text-success hover:bg-success hover:text-white px-4 py-3 rounded-xl text-xs font-black transition-colors shadow-sm flex-1 btn-modern">
-                                                             {isLocked ? 'ปลดล็อกอัดเสียง' : 'อนุญาตอัดใหม่'}
-                                                         </button>
-                                                         {!isLocked && (
-                                                             <button onClick={() => lockLiveInterview(c)} className="bg-white border border-primary text-primary hover:bg-primary hover:text-white px-4 py-3 rounded-xl text-xs font-black transition-colors shadow-sm flex-1 btn-modern">
-                                                                 บังคับสัมภาษณ์สด
-                                                             </button>
-                                                         )}
-                                                     </div>
-                                                 </div>
-                                             );
-                                         })}
-                                     </div>
-                                 </div>
-                             ))
-                        )}
+                    <div className="h-2.5 flex rounded-full overflow-hidden w-full bg-slate-100">
+                        <div style={{width:`${(s1/total)*100}%`}} className="bg-danger" title={`Failed: ${s1}`}></div>
+                        <div style={{width:`${(s2/total)*100}%`}} className="bg-orange" title={`Passed PK: ${s2}`}></div>
+                        <div style={{width:`${(s3/total)*100}%`}} className="bg-warning" title={`Pending Audio: ${s3}`}></div>
+                        <div style={{width:`${(s4/total)*100}%`}} className="bg-success" title={`Certified: ${s4}`}></div>
                     </div>
                 );
             };
 
             return (
-                <div className="max-w-6xl mx-auto space-y-6 pt-6">
-                    {showExport && <ExportModal onClose={() => setShowExport(false)} db={db} />}
-
-                    {/* 💡 Welcome Header */}
-                    <div className="bg-brandNavy text-white pt-10 pb-8 px-8 md:px-10 rounded-[32px] shadow-lg relative overflow-hidden mb-8">
-                         <div className="absolute right-0 top-0 w-64 h-64 bg-primary rounded-full blur-3xl opacity-40 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
-                         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
-                             <div>
-                                 <p className="text-primaryLight font-black text-[10px] uppercase tracking-widest mb-1.5 flex items-center"><Icons.Dashboard className="w-3 h-3 mr-1.5" /> Trainer Management Portal</p>
-                                 <h1 className="text-3xl md:text-4xl font-black">Hello {trainer.first_name_en}!</h1>
-                             </div>
-                             <button onClick={onLogout} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-black text-xs transition-colors backdrop-blur-sm flex items-center shadow-sm btn-modern">
-                                 <Icons.LogOut /> <span className="ml-2">ออกจากระบบ</span>
-                             </button>
-                         </div>
+                <div className="flex h-full w-full bg-surface">
+                    {showExport && <ExportModal db={db} onClose={()=>setShowExport(false)} />}
+                    
+                    {/* Mobile Header & Overlay Menu */}
+                    <div className="md:hidden fixed top-0 w-full bg-white border-b border-slate-200 z-50 px-4 py-3 flex justify-between items-center shadow-sm">
+                        <h1 className="font-black text-brandNavy text-lg">Trainer Portal</h1>
+                        <button onClick={()=>setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-brandNavy"><Icons.Menu className="w-6 h-6"/></button>
                     </div>
-
-                    {/* Navigation Tabs & Export */}
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-4 rounded-[24px] shadow-sm border border-slate-100 gap-4 mb-8">
-                        <div className="flex gap-2 w-full lg:w-auto overflow-x-auto custom-scrollbar pb-2 lg:pb-0">
-                            <button onClick={() => setTab('dashboard')} className={`px-5 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all ${tab==='dashboard'?'bg-primary text-white shadow-md':'bg-surface text-textMuted hover:bg-slate-200'}`}>
-                                Dashboard
-                            </button>
-                            <button onClick={() => setTab('audio')} className={`px-5 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all flex items-center ${tab==='audio'?'bg-primary text-white shadow-md':'bg-surface text-textMuted hover:bg-slate-200'}`}>
-                                Audio Queue <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${tab==='audio'?'bg-white/20':'bg-slate-200'}`}>{audioQueue.length}</span>
-                            </button>
-                            <button onClick={() => setTab('retake')} className={`px-5 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all flex items-center ${tab==='retake'?'bg-danger text-white shadow-md':'bg-surface text-textMuted hover:bg-slate-200'}`}>
-                                Retake Queue <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${tab==='retake'?'bg-white/20':'bg-slate-200'}`}>{retakeQueue.length}</span>
-                            </button>
+                    {isMobileMenuOpen && (
+                        <div className="md:hidden fixed inset-0 bg-brandNavy/90 z-40 pt-16 px-4 pb-4 flex flex-col">
+                            {/* 💡 แก้ไขข้อ 3: เปลี่ยนพื้นหลังการ์ดเมนูมือถือเป็นสีฟ้าอ่อนปนเทา (#F0F4F8) */}
+                            <div className="bg-[#F0F4F8] rounded-2xl p-4 flex flex-col gap-2 shadow-card border border-white">
+                                <button onClick={()=>changeView('dashboard')} className={`p-4 rounded-xl text-left font-bold flex items-center ${view==='dashboard'?'bg-blue-50 text-primary':'text-slate-600'}`}><Icons.Dashboard className="mr-3"/> Dashboard</button>
+                                <button onClick={()=>changeView('audio')} className={`p-4 rounded-xl text-left font-bold flex items-center ${view==='audio'?'bg-blue-50 text-primary':'text-slate-600'}`}><Icons.Audio className="mr-3"/> Audio Queue ({audioQueue.length})</button>
+                                <button onClick={()=>changeView('retake')} className={`p-4 rounded-xl text-left font-bold flex items-center ${view==='retake'?'bg-blue-50 text-primary':'text-slate-600'}`}><Icons.Retake className="mr-3"/> Retake Queue ({retakeQueue.length})</button>
+                                <button onClick={()=>{setShowExport(true); setIsMobileMenuOpen(false);}} className="p-4 rounded-xl text-left font-bold flex items-center text-success bg-emerald-50 mt-2"><Icons.Export className="mr-3"/> Export Report</button>
+                                <button onClick={onLogout} className="p-4 rounded-xl text-left font-bold flex items-center text-danger mt-auto"><Icons.LogOut className="mr-3"/> Logout</button>
+                            </div>
                         </div>
-                        <button onClick={() => setShowExport(true)} className="w-full lg:w-auto bg-emerald-50 text-success border border-emerald-200 px-6 py-3 rounded-xl font-black text-sm flex items-center justify-center hover:bg-emerald-100 transition-colors btn-modern shadow-sm shrink-0">
-                            <Icons.Download /> <span className="ml-2">Export Report</span>
-                        </button>
-                    </div>
+                    )}
 
-                    {/* Render Active Tab */}
-                    {tab === 'dashboard' && renderDashboardTab()}
-                    {tab === 'audio' && renderAudioTab()}
-                    {tab === 'retake' && renderRetakeTab()}
+                    {/* Sidebar (Desktop/iPad) */}
+                    {/* 💡 แก้ไขข้อ 3: เปลี่ยนพื้นหลัง Sidebar เป็นสีฟ้าอ่อนปนเทา (#F0F4F8) */}
+                    <aside className="hidden md:flex flex-col w-64 bg-[#F0F4F8] border-r border-slate-200 h-full shrink-0 relative z-10">
+                        <div className="p-6 border-b border-slate-200">
+                            <h1 className="text-2xl font-black text-brandNavy mb-1">Trainer</h1>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Management Portal</p>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-2">Welcome</p>
+                            <div className="flex items-center gap-3 px-2 mb-6">
+                                <div className="w-10 h-10 bg-primaryLight text-primary rounded-xl flex items-center justify-center font-black">{trainer.first_name_en.charAt(0)}</div>
+                                <div><p className="font-bold text-brandNavy leading-tight">{trainer.first_name_en}</p><p className="text-[10px] text-slate-500 font-bold">{trainer.rh}</p></div>
+                            </div>
+                        </div>
+                        <nav className="flex-1 px-4 space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-4">Menu</p>
+                            <button onClick={()=>changeView('dashboard')} className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-colors ${view==='dashboard'?'sidebar-active':'sidebar-inactive'}`}><Icons.Dashboard className="w-5 h-5 mr-3"/> Dashboard</button>
+                            <button onClick={()=>changeView('audio')} className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-colors ${view==='audio'?'sidebar-active':'sidebar-inactive'}`}><div className="flex items-center"><Icons.Audio className="w-5 h-5 mr-3"/> Audio Queue</div> <span className={`text-[10px] px-2 py-0.5 rounded-md ${view==='audio'?'bg-primary text-white':'bg-slate-200 text-slate-600'}`}>{audioQueue.length}</span></button>
+                            <button onClick={()=>changeView('retake')} className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-colors ${view==='retake'?'sidebar-active':'sidebar-inactive'}`}><div className="flex items-center"><Icons.Retake className="w-5 h-5 mr-3"/> Retake Queue</div> <span className={`text-[10px] px-2 py-0.5 rounded-md ${view==='retake'?'bg-primary text-white':'bg-slate-200 text-slate-600'}`}>{retakeQueue.length}</span></button>
+                            <div className="pt-4 mt-4 border-t border-slate-100"></div>
+                            <button onClick={()=>setShowExport(true)} className="w-full flex items-center px-4 py-3.5 rounded-xl text-success font-bold hover:bg-emerald-50 transition-colors"><Icons.Export className="w-5 h-5 mr-3"/> Export Report</button>
+                        </nav>
+                        <div className="p-4 mt-auto">
+                            <button onClick={onLogout} className="w-full flex items-center px-4 py-3 rounded-xl text-danger font-bold hover:bg-red-50 transition-colors"><Icons.LogOut className="w-5 h-5 mr-3"/> Logout</button>
+                        </div>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 h-full overflow-y-auto custom-scrollbar pt-20 md:pt-0">
+                        {view === 'eval' && selectedCandidate ? (
+                            <div className="p-4 md:p-8"><EvaluationView candidate={selectedCandidate} db={db} trainer={trainer} onBack={()=>changeView(audioQueue.includes(selectedCandidate)?'audio':'retake')} gradeAudio={gradeAudio} grantRetake={grantRetake} lockLiveInterview={lockLiveInterview}/></div>
+                        ) : (
+                            <div className="p-4 md:p-8 max-w-6xl mx-auto">
+                                {view === 'dashboard' && (
+                                    <div className="animate-fade-in pb-12">
+                                        <div className="mb-6"><h2 className="text-2xl font-black text-brandNavy">PD ttb Summary</h2><p className="text-sm font-bold text-slate-500">ภาพรวมระดับประเทศ (National Overview)</p></div>
+                                        
+                                        {/* National Stats */}
+                                        <div className="bg-white p-6 md:p-8 rounded-[24px] shadow-sm border border-slate-100 mb-8 flex flex-col lg:flex-row gap-8 items-center">
+                                            <div className="w-full lg:w-1/3 text-center lg:text-left border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-6">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Candidates</p>
+                                                <p className="text-5xl font-black text-brandNavy">{stats.total}</p>
+                                            </div>
+                                            <div className="w-full lg:w-2/3">
+                                                <div className="flex justify-between text-xs font-bold text-slate-500 mb-2">
+                                                    <span className="text-danger">Failed ({stats.failPK})</span><span className="text-orange">Theory ({stats.passPKNoAudio})</span>
+                                                    <span className="text-warning">Audio ({stats.pendAudio})</span><span className="text-success">Certified ({stats.cert})</span>
+                                                </div>
+                                                <ProgressBar s1={stats.failPK} s2={stats.passPKNoAudio} s3={stats.pendAudio} s4={stats.cert} total={stats.total} />
+                                                <div className="flex gap-6 mt-6 justify-center lg:justify-start">
+                                                    <div><p className="text-[10px] font-black text-slate-400 uppercase">AVG Theory</p><p className="text-xl font-black text-primary">{stats.avgTheory}%</p></div>
+                                                    <div><p className="text-[10px] font-black text-slate-400 uppercase">AVG Audio</p><p className="text-xl font-black text-primary">{stats.avgAudio}%</p></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-6"><h2 className="text-xl font-black text-brandNavy">RH Dashboard</h2><p className="text-sm font-bold text-slate-500">ภาพรวมเจาะลึกรายภูมิภาค</p></div>
+                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                            {Object.entries(stats.rhs).sort((a,b)=>{
+                                                // Rank by AVG Audio Score descending
+                                                const avgA = a[1].audioCount>0 ? a[1].audioSum/a[1].audioCount : 0;
+                                                const avgB = b[1].audioCount>0 ? b[1].audioSum/b[1].audioCount : 0;
+                                                return avgB - avgA;
+                                            }).map(([rh, data], index) => {
+                                                const rhAvgTheory = data.theoryCount>0 ? Math.round(data.theorySum/data.theoryCount) : 0;
+                                                const rhAvgAudio = data.audioCount>0 ? Math.round(data.audioSum/data.audioCount) : 0;
+                                                return (
+                                                    <div key={rh} className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 relative">
+                                                        <div className="absolute top-0 right-6 bg-blue-50 text-primary px-3 py-1 rounded-b-lg text-xs font-black shadow-sm">Rank #{index+1}</div>
+                                                        <h3 className="text-lg font-black text-brandNavy mb-1">{rh}</h3>
+                                                        <p className="text-xs font-bold text-slate-500 mb-4">Total: {data.total} Candidates</p>
+                                                        
+                                                        <ProgressBar s1={data.failPK} s2={data.passPKNoAudio} s3={data.pendAudio} s4={data.cert} total={data.total}/>
+                                                        
+                                                        <div className="grid grid-cols-2 gap-4 mt-6 p-4 bg-surface rounded-xl border border-slate-200">
+                                                            <div className="text-center border-r border-slate-200"><p className="text-[10px] font-black text-slate-400 uppercase">Theory</p><p className="font-black text-brandNavy">{rhAvgTheory}%</p></div>
+                                                            <div className="text-center"><p className="text-[10px] font-black text-slate-400 uppercase">Audio</p><p className="font-black text-brandNavy">{rhAvgAudio}%</p></div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                                {view === 'audio' && renderQueue('audio')}
+                                {view === 'retake' && renderQueue('retake')}
+                            </div>
+                        )}
+                        <footer className="mt-auto border-t border-slate-200 bg-white py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">
+                            Powered by : PRU ACADEMY <span className="text-primary">[ttb training team]</span>
+                        </footer>
+                    </main>
                 </div>
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root')); root.render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ErrorBoundary><App /></ErrorBoundary>);
     </script>
 </body>
 </html>
+
 
 
